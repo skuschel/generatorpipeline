@@ -1,7 +1,6 @@
 # Copyright (C) 2019 Stephan Kuschel
 
 
-
 import functools
 import types
 from multiprocessing import Pool
@@ -9,9 +8,26 @@ import os
 
 __all__  = ['pipeline']
 
+
 class pipeline():
 
     def __init__(self, workers=0, verbose=False):
+        '''
+        Create a pipeline decorator.
+
+        kwargs
+        -------
+        workers = 0
+          number of workers to be used for this execution.
+          0 (default) will be single threaded execution in the current process.
+          Will create about 0.6 micro-second overhead
+          per call.
+          Caution: If workers > 0, then the inter-process communication will
+          create overhead of about 125 micro-seconds per function call!
+
+        verbose = False,
+          activate verbose print statements. For debugging only.
+        '''
         self.workers = workers
         self.verbose = verbose
 
@@ -19,7 +35,7 @@ class pipeline():
         '''
         Decorate the function `func` to be used as a pipeline.
 
-        kwargs will be forwarded to every call of f.
+        kwargs to the decorated function will be forwarded to every call of f.
         '''
         if not callable(func):
             raise TypeError("must be a callable")
