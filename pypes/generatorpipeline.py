@@ -5,13 +5,15 @@ import functools
 import types
 from multiprocessing import Pool
 import os
+from .helper import isgenerator
+
 
 __all__  = ['pipeline']
 
 
 class pipeline():
 
-    def __init__(self, workers=0, verbose=False):
+    def __init__(self, workers=0, *, verbose=False):
         '''
         Create a pipeline decorator.
 
@@ -76,7 +78,7 @@ class pipeline():
 
         @functools.wraps(f)
         def wrapper(arg, **kwargs):
-            if isinstance(arg, types.GeneratorType):
+            if isgenerator(arg):
                 if self.workers == 0:
                     return return_generator_serial(arg, **kwargs)
                 else:
