@@ -2,7 +2,7 @@
 
 
 '''
-The pypes package provides a clean and easy interface to build a data processing pipeline
+The generatorpipeline package provides a clean and easy interface to build a data processing pipeline
 using python generators and the multiprocessing library.
 '''
 

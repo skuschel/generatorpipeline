@@ -1,3 +1,3 @@
-# pypes
+# generatorpipeline
 
 Parallel Generators made easy. 

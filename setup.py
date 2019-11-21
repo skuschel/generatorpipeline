@@ -5,7 +5,7 @@
 from setuptools import setup, find_packages
 
 
-setup(name='pypes',
+setup(name='generatorpipeline',
       version='0.0.0',
       author='Stephan Kuschel',
       author_email='stephan.kuschel@gmail.com',
