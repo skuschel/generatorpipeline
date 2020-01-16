@@ -1,0 +1,51 @@
+#!/bin/bash
+#
+# This file is part of generatorpipeline.
+#
+# generatorpipeline is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# generatorpipeline is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with postpic. If not, see <http://www.gnu.org/licenses/>.
+#
+# Copyright Stephan Kuschel, 2019-2020
+
+# This script is a wrapper around the run-tests.sh script.
+# It is highly recommended to link it as the git pre-commit hook via:
+
+# ln -s ../../pre-commit .git/hooks/pre-commit
+
+# The difference to the run-tests.sh script is that this script stashes
+# unstaged changes before testing (see below). Thus only the changeset to be
+# commited will be tested. No worries, "git commit -a" will still work ;)
+
+# Stash unstaged changes if and only if possible:
+# Its important to skip the stashing if there are no changes detected!
+# Otherwise 'git stash -q --keep-index' will not create a stash.
+# Later 'git stash apply --index -q' would then unintentionally apply
+# an older stash.
+
+if git diff-index --quiet HEAD --; then
+    # this happens for example on git commit --amend
+    echo "No changes detected. Skipping tests..."
+    sleep 1
+    exitcode=0
+elif [ -e .git/MERGE_HEAD ]; then
+    echo "Merge in progress... Testing against the working directory leaving unstages changes intact!"
+    ./run-tests.sh
+    exitcode=$?
+else
+    git stash -q --keep-index
+    ./run-tests.sh
+    exitcode=$?
+    git reset --hard -q && git stash apply --index -q && git stash drop -q
+fi
+
+exit $exitcode
