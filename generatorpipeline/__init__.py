@@ -2,14 +2,13 @@
 
 
 '''
-The generatorpipeline package provides a clean and easy interface to build a data processing pipeline
-using python generators and the multiprocessing library.
+The generatorpipeline package provides a clean and easy interface to build
+a data processing pipeline using python generators and the multiprocessing library.
 '''
 
-from .generatorpipeline import *
-from .helper import *
+from .generatorpipeline import pipeline
+from .helper import isgenerator
 
 
-__all__ = []
-__all__ += generatorpipeline.__all__
-__all__ += helper.__all__
+__all__ = ['pipeline']
+__all__ += ['isgenerator']

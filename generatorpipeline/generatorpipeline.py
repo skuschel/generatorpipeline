@@ -2,13 +2,12 @@
 
 
 import functools
-import types
 from multiprocessing import Pool
 import os
 from .helper import isgenerator
 
 
-__all__  = ['pipeline']
+__all__ = ['pipeline']
 
 
 class pipeline():
@@ -42,7 +41,6 @@ class pipeline():
         if not callable(func):
             raise TypeError("must be a callable")
         return self._build_pipeline(func)
-
 
     def _build_pipeline(self, f):
 
@@ -83,7 +81,6 @@ class pipeline():
                     return return_generator_serial(arg, **kwargs)
                 else:
                     return return_generator_parallel(arg, **kwargs)
-                return ret
             else:
                 if self.verbose:
                     print(f'executing wrapped function "{f.__name__}" (PID: {os.getpid()}).')

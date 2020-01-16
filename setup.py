@@ -2,7 +2,7 @@
 
 # Copyright (C) 2019 Stephan Kuschel
 
-from setuptools import setup, find_packages
+from setuptools import setup
 
 
 setup(name='generatorpipeline',
