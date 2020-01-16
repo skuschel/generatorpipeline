@@ -13,7 +13,7 @@ from .helper import isgenerator
 __all__ = ['pipeline']
 __all__ += ['isgenerator']
 
-from ._version import get_versions
+from ._version import get_versions  # noqa
 __version__ = get_versions()['version']
 __git_version__ = get_versions()['full-revisionid']
 # work around if zip is downloaded from github and current version does not have a tag.
