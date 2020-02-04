@@ -8,12 +8,12 @@ a data processing pipeline using python generators and the multiprocessing libra
 
 from .generatorpipeline import pipeline
 from .helper import isgenerator
-from .streamfunctions import filterNone
+from .streamfunctions import filterNone, simplecache
 
 
 __all__ = ['pipeline']
 __all__ += ['isgenerator']
-__all__ += ['filterNone']
+__all__ += ['filterNone', 'simplecache']
 
 from ._version import get_versions  # noqa
 __version__ = get_versions()['version']
