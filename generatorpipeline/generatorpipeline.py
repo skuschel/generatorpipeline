@@ -4,6 +4,7 @@
 import functools
 from multiprocessing import Pool
 import os
+from collections import deque
 from .helper import isgenerator
 
 
@@ -54,25 +55,18 @@ class pipeline():
             if self.verbose:
                 print(f'parallel execution of "{f.__name__}" with {self.workers} workers.')
             pool = Pool(self.workers)
-            readidx = 0
-            writeidx = 0
-            clen = self.workers + 1
-            cache = [None] * clen
+            cache = deque()
             for el in arg:
-                cache[writeidx] = pool.apply_async(wrapper, (el,), kwargs)
-                writeidx = (writeidx + 1) % clen
-                if writeidx != readidx:
+                cache.append(pool.apply_async(wrapper, (el,), kwargs))
+                if len(cache) < self.workers:
                     # fill cache
                     continue
-                yield cache[readidx].get()
-                readidx = (readidx + 1) % clen
+                yield cache.popleft().get()
             # flush cache
-            while True:
-                yield cache[readidx].get()
-                readidx = (readidx + 1) % clen
-                if readidx == writeidx:
-                    pool.close()
-                    return
+            while len(cache) > 0:
+                yield cache.popleft().get()
+            pool.close()
+            return
 
         @functools.wraps(f)
         def wrapper(arg, **kwargs):
