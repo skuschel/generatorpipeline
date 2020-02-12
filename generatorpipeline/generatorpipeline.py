@@ -13,13 +13,13 @@ __all__ = ['pipeline']
 
 class pipeline():
 
-    def __init__(self, workers=0, *, verbose=False):
+    def __init__(self, nworkers=0, *, verbose=False, extracache=0):
         '''
         Create a pipeline decorator.
 
         kwargs
         -------
-        workers = 0
+        nworkers = 0
           number of workers to be used for this execution.
           0 (default) will be single threaded execution in the current process.
           Will create about 0.6 micro-second overhead
@@ -27,10 +27,15 @@ class pipeline():
           Caution: If workers > 0, then the inter-process communication will
           create overhead of about 125 micro-seconds per function call!
 
+        extracache = 0,
+          changes the number of cached elements. By default, the cache will
+          hold `nworkers` many elements. `extracache` will specify additional
+          elements to be cached, without having additional workers.
         verbose = False,
           activate verbose print statements. For debugging only.
         '''
-        self.workers = workers
+        self.nworkers = nworkers
+        self.cachelen = nworkers + extracache
         self.verbose = verbose
 
     def __call__(self, func):
@@ -53,12 +58,12 @@ class pipeline():
 
         def return_generator_parallel(arg, **kwargs):
             if self.verbose:
-                print(f'parallel execution of "{f.__name__}" with {self.workers} workers.')
-            pool = Pool(self.workers)
+                print(f'parallel execution of "{f.__name__}" with {self.nworkers} workers.')
+            pool = Pool(self.nworkers)
             cache = deque()
             for el in arg:
                 cache.append(pool.apply_async(wrapper, (el,), kwargs))
-                if len(cache) < self.workers:
+                if len(cache) < self.cachelen:
                     # fill cache
                     continue
                 yield cache.popleft().get()
@@ -71,7 +76,7 @@ class pipeline():
         @functools.wraps(f)
         def wrapper(arg, **kwargs):
             if isgenerator(arg):
-                if self.workers == 0:
+                if self.nworkers == 0:
                     return return_generator_serial(arg, **kwargs)
                 else:
                     return return_generator_parallel(arg, **kwargs)
@@ -79,5 +84,6 @@ class pipeline():
                 if self.verbose:
                     print(f'executing wrapped function "{f.__name__}" (PID: {os.getpid()}).')
                 return f(arg, **kwargs)
-        wrapper.workers = self.workers
+        wrapper.nworkers = self.nworkers
+        wrapper.ncache = self.ncache
         return wrapper
