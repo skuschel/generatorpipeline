@@ -13,7 +13,7 @@ __all__ = ['pipeline']
 
 class pipeline():
 
-    def __init__(self, nworkers=0, *, verbose=False, extracache=0):
+    def __init__(self, nworkers=0, *, skipNone=True, extracache=0, verbose=False):
         '''
         Create a pipeline decorator.
 
@@ -27,6 +27,8 @@ class pipeline():
           Caution: If workers > 0, then the inter-process communication will
           create overhead of about 125 micro-seconds per function call!
 
+        skipNone = True,
+          when False, also `None` objects will be returned. Default is to skip `None`.
         extracache = 0,
           changes the number of cached elements. By default, the cache will
           hold `nworkers` many elements. `extracache` will specify additional
@@ -37,6 +39,7 @@ class pipeline():
         self.nworkers = nworkers
         self.cachelen = nworkers + extracache
         self.verbose = verbose
+        self.skipNone = skipNone
 
     def __call__(self, func):
         '''
@@ -54,7 +57,9 @@ class pipeline():
             if self.verbose:
                 print(f'serial execution of "{f.__name__}"')
             for el in arg:
-                yield wrapper(el, **kwargs)  # f(el)
+                ret = wrapper(el, **kwargs)  # f(el)
+                if ret is not None and self.skipNone:
+                    yield ret
 
         def return_generator_parallel(arg, **kwargs):
             if self.verbose:
@@ -66,10 +71,14 @@ class pipeline():
                 if len(cache) < self.cachelen:
                     # fill cache
                     continue
-                yield cache.popleft().get()
+                ret = cache.popleft().get()
+                if ret is not None and self.skipNone:
+                    yield ret
             # flush cache
             while len(cache) > 0:
-                yield cache.popleft().get()
+                ret = cache.popleft().get()
+                if ret is not None and self.skipNone:
+                    yield ret
             pool.close()
             return
 
@@ -85,5 +94,6 @@ class pipeline():
                     print(f'executing wrapped function "{f.__name__}" (PID: {os.getpid()}).')
                 return f(arg, **kwargs)
         wrapper.nworkers = self.nworkers
-        wrapper.ncache = self.ncache
+        wrapper.cachelen = self.cachelen
+        wrapper.skipNone = self.skipNone
         return wrapper

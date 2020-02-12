@@ -28,14 +28,3 @@ def simplecache(gen, length=8):
         yield list(cache)
         # no need to remove the oldest element, because `maxlen`
         # was specified when the deque was initialized.
-
-
-def filterNone(gen):
-    '''
-    Removes elements from the stream, which are `None`.
-    '''
-    if not isgenerator(gen):
-        raise ValueError(f'{gen} must be a generator.')
-    for el in gen:
-        if el is not None:
-            yield el
