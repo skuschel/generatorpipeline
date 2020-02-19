@@ -29,4 +29,5 @@ setup(name='generatorpipeline',
       license='GPLv3+',
       author='Stephan Kuschel',
       author_email='stephan.kuschel@gmail.com',
+      url='https://github.com/skuschel/generatorpipeline',
       description='Build data-processing pipelines with generators.')
