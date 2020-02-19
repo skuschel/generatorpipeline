@@ -25,6 +25,7 @@ import versioneer
 setup(name='generatorpipeline',
       version=versioneer.get_version(),
       cmdclass=versioneer.get_cmdclass(),
+      python_requires='>=2.7',
       license='GPLv3+',
       author='Stephan Kuschel',
       author_email='stephan.kuschel@gmail.com',
