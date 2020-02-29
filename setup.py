@@ -30,4 +30,4 @@ setup(name='generatorpipeline',
       author='Stephan Kuschel',
       author_email='stephan.kuschel@gmail.com',
       url='https://github.com/skuschel/generatorpipeline',
-      description='Build data-processing pipelines with generators.')
+      description='Parallelize your data-processing pipelines with just a decorator.')
