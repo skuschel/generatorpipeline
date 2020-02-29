@@ -13,6 +13,22 @@ def square_serial(el):
 def square_parallel(el):
     return el**2
 
+@gp.pipeline()
+def filter10_serial(el):
+    # remove element 10 from the stream
+    if el == 10:
+        return
+    else:
+        return el
+
+@gp.pipeline(2)
+def filter10_parallel(el):
+    # remove element 10 from the stream
+    if el == 10:
+        return
+    else:
+        return el
+
 
 class _TestPipeline():
 
@@ -26,6 +42,20 @@ class _TestPipeline():
         gen = (i for i in range(20))
         gen = self.squaref(gen)
         sq = [i**2 for i in range(20)]
+        self.assertListEqual(list(gen), sq)
+
+    def test_discard_s(self):
+        gen = (i for i in range(20))
+        gen = filter10_serial(gen)
+        gen = self.squaref(gen)
+        sq = [i**2 for i in range(20) if i != 10]
+        self.assertListEqual(list(gen), sq)
+
+    def test_discard_p(self):
+        gen = (i for i in range(20))
+        gen = filter10_parallel(gen)
+        gen = self.squaref(gen)
+        sq = [i**2 for i in range(20) if i != 10]
         self.assertListEqual(list(gen), sq)
 
 
