@@ -20,7 +20,7 @@ import functools
 from multiprocessing import Pool
 import os
 from collections import deque
-from .helper import isgenerator
+from .helper import isiterator
 
 
 __all__ = ['pipeline']
@@ -99,7 +99,7 @@ class pipeline():
 
         @functools.wraps(f)
         def wrapper(arg, **kwargs):
-            if isgenerator(arg):
+            if isiterator(arg):
                 if self.nworkers == 0:
                     return return_generator_serial(arg, **kwargs)
                 else:

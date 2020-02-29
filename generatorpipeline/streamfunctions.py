@@ -21,7 +21,7 @@ This module offers functions to help with stream manipulation.
 '''
 
 from collections import deque
-from .helper import isgenerator
+from .helper import isiterator
 
 
 def simplecache(gen, length=8):
@@ -32,8 +32,8 @@ def simplecache(gen, length=8):
     element `[-2]` the element before that, till
     element `[-length]` is the oldest element to be accessed. Equal to element `[0]`.
     '''
-    if not isgenerator(gen):
-        raise ValueError(f'{gen} must be a generator.')
+    if not isiterator(gen):
+        raise ValueError(f'{gen} must be an iterator.')
     cache = deque(maxlen=length)
     for el in gen:
         cache.append(el)

@@ -17,11 +17,11 @@
 #
 
 
-import types
+import collections
 
 
-__all__ = ['isgenerator']
+__all__ = ['isiterator']
 
 
-def isgenerator(x):
-    return isinstance(x, types.GeneratorType)
+def isiterator(x):
+    return isinstance(x, collections.Iterator)
