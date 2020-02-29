@@ -73,7 +73,7 @@ class pipeline():
                 print(f'serial execution of "{f.__name__}"')
             for el in arg:
                 ret = wrapper(el, **kwargs)  # f(el)
-                if ret is not None and self.skipNone:
+                if ret is not None or not self.skipNone:
                     yield ret
 
         def return_generator_parallel(arg, **kwargs):
@@ -87,12 +87,12 @@ class pipeline():
                     # fill cache
                     continue
                 ret = cache.popleft().get()
-                if ret is not None and self.skipNone:
+                if ret is not None or not self.skipNone:
                     yield ret
             # flush cache
             while len(cache) > 0:
                 ret = cache.popleft().get()
-                if ret is not None and self.skipNone:
+                if ret is not None or not self.skipNone:
                     yield ret
             pool.close()
             return
