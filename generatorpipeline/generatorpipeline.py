@@ -79,23 +79,21 @@ class pipeline():
         def return_generator_parallel(arg, **kwargs):
             if self.verbose:
                 print(f'parallel execution of "{f.__name__}" with {self.nworkers} workers.')
-            pool = Pool(self.nworkers)
-            cache = deque()
-            for el in arg:
-                cache.append(pool.apply_async(wrapper, (el,), kwargs))
-                if len(cache) < self.cachelen:
-                    # fill cache
-                    continue
-                ret = cache.popleft().get()
-                if ret is not None or not self.skipNone:
-                    yield ret
-            # flush cache
-            while len(cache) > 0:
-                ret = cache.popleft().get()
-                if ret is not None or not self.skipNone:
-                    yield ret
-            pool.close()
-            return
+            with Pool(self.nworkers) as pool:
+                cache = deque()
+                for el in arg:
+                    cache.append(pool.apply_async(wrapper, (el,), kwargs))
+                    if len(cache) < self.cachelen:
+                        # fill cache
+                        continue
+                    ret = cache.popleft().get()
+                    if ret is not None or not self.skipNone:
+                        yield ret
+                # flush cache
+                while len(cache) > 0:
+                    ret = cache.popleft().get()
+                    if ret is not None or not self.skipNone:
+                        yield ret
 
         @functools.wraps(f)
         def wrapper(arg, **kwargs):
