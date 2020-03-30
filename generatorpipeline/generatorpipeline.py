@@ -73,7 +73,9 @@ class pipeline():
                 print(f'serial execution of "{f.__name__}"')
             for el in arg:
                 ret = wrapper(el, **kwargs)  # f(el)
+                wrapper.el_processed += 1
                 if ret is not None or not self.skipNone:
+                    wrapper.el_yielded += 1
                     yield ret
 
         def return_generator_parallel(arg, **kwargs):
@@ -87,12 +89,16 @@ class pipeline():
                         # fill cache
                         continue
                     ret = cache.popleft().get()
+                    wrapper.el_processed += 1
                     if ret is not None or not self.skipNone:
+                        wrapper.el_yielded += 1
                         yield ret
                 # flush cache
                 while len(cache) > 0:
                     ret = cache.popleft().get()
+                    wrapper.el_processed += 1
                     if ret is not None or not self.skipNone:
+                        wrapper.el_yielded += 1
                         yield ret
 
         @functools.wraps(f)
@@ -109,4 +115,23 @@ class pipeline():
         wrapper.nworkers = self.nworkers
         wrapper.cachelen = self.cachelen
         wrapper.skipNone = self.skipNone
+        wrapper.el_processed = 0
+        wrapper.el_yielded = 0
+        wrapper.pipe_info = lambda: Pipe_info(wrapper.el_processed, wrapper.el_yielded)
         return wrapper
+
+
+class Pipe_info():
+
+    def __init__(self, processed=0, yielded=0):
+        self.processed = processed
+        self.yielded = yielded
+
+    def __str__(self):
+        if self.processed > 0:
+            s = 'Pipe_info(processed={p}, yielded={y})[{r:.2%}]'
+            return s.format(p=self.processed, y=self.yielded, r=self.yielded/self.processed)
+        s = 'Pipe_info(processed={p}, yielded={y})'
+        return s.format(p=self.processed, y=self.yielded)
+
+    __repr__ = __str__
