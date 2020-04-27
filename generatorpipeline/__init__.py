@@ -9,6 +9,7 @@ a data processing pipeline using python generators and the multiprocessing libra
 from .generatorpipeline import pipeline
 from .helper import isiterator
 from .streamfunctions import simplecache
+from . import accumulators  # noqa
 
 
 __all__ = ['pipeline']
