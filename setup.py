@@ -30,4 +30,5 @@ setup(name='generatorpipeline',
       author='Stephan Kuschel',
       author_email='stephan.kuschel@gmail.com',
       url='https://github.com/skuschel/generatorpipeline',
+      install_requires=['numpy'],
       description='Parallelize your data-processing pipelines with just a decorator.')
