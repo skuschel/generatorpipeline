@@ -68,7 +68,53 @@ class Accumulator(abc.ABC):
     __iadd__ = accumulate
 
 
+class _BinaryOpAccumulatorNumpy(Accumulator):
+    '''
+    Baseclass for Accumulation with a binary operation.
+    '''
+    _operator = None
+
+    def __init__(self):
+        self.acc = None
+        self._n = 0
+
+    def accumulate_obj(self, obj):
+        self._n += 1
+        if self.acc is None:
+            self.acc = obj
+            return
+        # using numpy functions will cost extra time on simple python objects, but
+        # save time when used on images.
+        self.acc = self.__class__._operator([self.acc, obj], axis=0)
+
+    def accumulate_other(self, other):
+        self.acc = self.__class__._operator([self.acc, other.acc], axis=0)
+        self._n += other._n
+
+    @property
+    def value(self):
+        return self.acc
+
+    @property
+    def n(self):
+        return self._n
+
+
 # Some basic accumulators.
+
+class Min(_BinaryOpAccumulatorNumpy):
+    '''
+    Calculate the Max over all data.
+    '''
+    _operator = np.min
+
+
+class Max(_BinaryOpAccumulatorNumpy):
+    '''
+    Calculate the Max over all data.
+    '''
+    _operator = np.max
+
 
 class Mean(Accumulator):
     '''
