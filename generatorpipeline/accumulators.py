@@ -81,7 +81,7 @@ class _BinaryOpAccumulatorNumpy(Accumulator):
     def accumulate_obj(self, obj):
         self._n += 1
         if self.acc is None:
-            self.acc = obj
+            self.acc = np.asarray(obj)
             return
         self.__class__._operator(self.acc, obj, out=self.acc)
 
