@@ -136,6 +136,10 @@ class Mean(Accumulator):
         return self.acc / self.n
 
     @property
+    def sum(self):
+        return self.acc
+
+    @property
     def n(self):
         return self._n
 
