@@ -83,12 +83,10 @@ class _BinaryOpAccumulatorNumpy(Accumulator):
         if self.acc is None:
             self.acc = obj
             return
-        # using numpy functions will cost extra time on simple python objects, but
-        # save time when used on images.
-        self.acc = self.__class__._operator([self.acc, obj], axis=0)
+        self.__class__._operator(self.acc, obj, out=self.acc)
 
     def accumulate_other(self, other):
-        self.acc = self.__class__._operator([self.acc, other.acc], axis=0)
+        self.__class__._operator(self.acc, other.acc, out=self.acc)
         self._n += other._n
 
     @property
@@ -102,18 +100,18 @@ class _BinaryOpAccumulatorNumpy(Accumulator):
 
 # Some basic accumulators.
 
-class Min(_BinaryOpAccumulatorNumpy):
+class Minimum(_BinaryOpAccumulatorNumpy):
     '''
-    Calculate the Max over all data.
+    Calculate the minimum over all data.
     '''
-    _operator = np.min
+    _operator = np.minimum
 
 
-class Max(_BinaryOpAccumulatorNumpy):
+class Maximum(_BinaryOpAccumulatorNumpy):
     '''
-    Calculate the Max over all data.
+    Calculate the maximum over all data.
     '''
-    _operator = np.max
+    _operator = np.maximum
 
 
 class Mean(Accumulator):
