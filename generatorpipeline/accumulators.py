@@ -155,7 +155,7 @@ class RunningMean(Accumulator):
     def __init__(self, lifetime=10):
         self.acc = 0
         self._n = 0
-        self.alpha = 1/lifetime
+        self.lifetime = lifetime
 
     def accumulate_obj(self, obj):
         self.acc = self.acc * (1 - self.alpha) + obj * self.alpha
@@ -168,6 +168,14 @@ class RunningMean(Accumulator):
     @property
     def n(self):
         return self._n
+
+    @property
+    def lifetime(self):
+        return 1/self.alpha
+
+    @lifetime.setter
+    def lifetime(self, x):
+        self.alpha = 1/x
 
 
 class Variance(Accumulator):
@@ -211,3 +219,12 @@ class RunningVariance(Variance):
     def __init__(self, lifetime=10):
         self.mean = RunningMean(lifetime=lifetime)
         self.meansq = RunningMean(lifetime=lifetime)
+
+    @property
+    def lifetime(self):
+        return self.mean.lifetime
+
+    @lifetime.setter
+    def lifetime(self, x):
+        self.mean.lifetime = x
+        self.meansq.lifetime = x
