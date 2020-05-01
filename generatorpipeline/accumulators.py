@@ -183,19 +183,32 @@ class RunningMean(Accumulator):
 class Variance(Accumulator):
     '''
     Calculate the Variance over all data.
+
+    Internally Welfords Algorithm is used:
+    https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Welford's_online_algorithm
     '''
 
     def __init__(self):
         self.mean = Mean()
-        self.meansq = Mean()
+        self.var = Mean()
 
     def accumulate_obj(self, obj):
+        if self.n == 0:
+            M = 0
+        else:
+            M = self.mean.value  # mean from last iteration
         self.mean += obj
-        self.meansq += obj**2
+        # (obj - M_n-1) * (obj - M_n) -- last and current iteration mean
+        self.var += (obj - M) * (obj - self.mean.value)
 
     def accumulate_other(self, other):
+        # for explanation of the formulas, see
+        # https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Parallel_algorithm
+        dmean = self.mean.value - other.mean.value
+        newn = self.n + other.n
+        newvar = self.var.sum + other.var.sum + dmean**2 * self.n * other.n / newn
         self.mean += other.mean
-        self.meansq += other.meansq
+        self.var = Mean(value=newvar/newn, n=newn)
 
     @property
     def n(self):
@@ -203,7 +216,7 @@ class Variance(Accumulator):
 
     @property
     def value(self):
-        return self.meansq.value - self.mean.value**2
+        return self.var.value
 
     @property
     def std(self):
