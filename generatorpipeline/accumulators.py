@@ -119,9 +119,11 @@ class Mean(Accumulator):
     Calculate the Mean over all data.
     '''
 
-    def __init__(self):
-        self.acc = 0
-        self._n = 0
+    def __init__(self, value=0, n=0):
+        if not n >= 0:
+            raise ValueError('n >=0 required, but n={} found.', format(n))
+        self.acc = value * n
+        self._n = n
 
     def accumulate_obj(self, obj):
         self.acc += obj
