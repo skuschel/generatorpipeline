@@ -233,7 +233,7 @@ class RunningVariance(Variance):
 
     def __init__(self, lifetime=10):
         self.mean = RunningMean(lifetime=lifetime)
-        self.meansq = RunningMean(lifetime=lifetime)
+        self.var = RunningMean(lifetime=lifetime)
 
     @property
     def lifetime(self):
@@ -242,4 +242,4 @@ class RunningVariance(Variance):
     @lifetime.setter
     def lifetime(self, x):
         self.mean.lifetime = x
-        self.meansq.lifetime = x
+        self.var.lifetime = x
