@@ -18,13 +18,14 @@
 # along with generatorpipeline. If not, see <http://www.gnu.org/licenses/>.
 #
 
-from setuptools import setup
+from setuptools import setup, find_packages
 import versioneer
 
 
 setup(name='generatorpipeline',
       version=versioneer.get_version(),
       cmdclass=versioneer.get_cmdclass(),
+      packages=find_packages(include=['generatorpipeline*']),
       python_requires='>=3.6',
       license='GPLv3+',
       author='Stephan Kuschel',
