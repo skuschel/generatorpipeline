@@ -27,3 +27,5 @@ set -o xtrace
 
 flake8 --max-line-length=99 --show-source --statistics generatorpipeline
 nosetests . --exe
+
+./test/benchmark.py
