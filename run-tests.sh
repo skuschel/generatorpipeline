@@ -29,3 +29,4 @@ flake8 --max-line-length=99 --show-source --statistics generatorpipeline
 nosetests . --exe
 
 ./test/benchmark.py
+./test/benchmark_accumulator.py
