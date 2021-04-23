@@ -161,8 +161,9 @@ class RunningMean(Accumulator):
         self.lifetime = lifetime
 
     def accumulate_obj(self, obj):
-        self.acc = self.acc * (1 - self.alpha) + obj * self.alpha
         self._n += 1
+        alpha = max(self.alpha, 1/self._n)
+        self.acc = self.acc * (1 - alpha) + obj * alpha
 
     @property
     def value(self):
