@@ -122,20 +122,21 @@ class Mean(Accumulator):
     def __init__(self, value=0, n=0):
         if not n >= 0:
             raise ValueError('n >=0 required, but n={} found.', format(n))
-        self.acc = value * n
+        self._val = value
         self._n = n
 
     def accumulate_obj(self, obj):
-        self.acc += obj
         self._n += 1
+        self._val += obj / self._n - self._val / self._n
 
     def accumulate_other(self, other):
-        self.acc += other.acc
+        ntot = self.n + other.n
+        self._val = self._val * (self.n / ntot) + other._val * (other.n / ntot)
         self._n += other._n
 
     @property
     def value(self):
-        return self.acc / self.n
+        return self._val
 
     @property
     def sum(self):
