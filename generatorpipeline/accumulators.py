@@ -1,4 +1,4 @@
-# Copyright (C) 2020 Stephan Kuschel
+# Copyright (C) 2020-2021 Stephan Kuschel
 #
 # This file is part of generatorpipeline.
 #
@@ -272,3 +272,25 @@ class Covariance(Accumulator):
     @property
     def value(self):
         return self._cov.value * (self.n / (self.n - 1))
+
+
+class RunningCovariance(Covariance):
+    '''
+    Calculate the exponential running Covariance(matrix).
+
+    Note: `accumulate_other` will raise a NotImplementedError
+    inside RunningMean.
+    '''
+
+    def __init__(self, lifetime=10):
+        self.mean = RunningMean(lifetime=lifetime)
+        self._cov = RunningMean(lifetime=lifetime)
+
+    @property
+    def lifetime(self):
+        return self.mean.lifetime
+
+    @lifetime.setter
+    def lifetime(self, x):
+        self.mean.lifetime = x
+        self._cov.lifetime = x
