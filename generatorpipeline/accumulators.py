@@ -262,6 +262,15 @@ class Covariance(Accumulator):
         D = np.outer(delta1, delta2)
         self._cov += D
 
+    def accumulate_other(self, other):
+        # for explanation of the formulas, see
+        # https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Parallel_algorithm
+        dmean = self.mean.value - other.mean.value
+        newn = self.n + other.n
+        newvar = self._cov.sum + other._cov.sum + np.outer(dmean, dmean) * self.n * other.n / newn
+        self.mean += other.mean
+        self._cov = Mean(value=newvar/newn, n=newn)
+
     @property
     def n(self):
         return self.mean.n

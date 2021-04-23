@@ -18,12 +18,38 @@ class _TestAccumulator():
         np.testing.assert_array_almost_equal(acc.value, self.ref(data))
         self.assertEqual(acc.n, len(data))
 
+    def test_1d_accumulate_other(self):
+        np.random.seed(42)
+        data = np.random.random(100)
+        acc = self.testacc()
+        acc2 = self.testacc()
+        for d in data[:len(data)//2]:
+            acc += d
+        for d in data[len(data)//2:]:
+            acc2 += d
+        acc += acc2
+        np.testing.assert_array_almost_equal(acc.value, self.ref(data))
+        self.assertEqual(acc.n, len(data))
+
     def test_2d(self):
         np.random.seed(42)
         data = np.random.random((100, 5))
         acc = self.testacc()
         for d in data:
             acc += d
+        np.testing.assert_array_almost_equal(acc.value, self.ref(data))
+        self.assertEqual(acc.n, len(data))
+
+    def test_2d(self):
+        np.random.seed(42)
+        data = np.random.random((100, 5))
+        acc = self.testacc()
+        acc2 = self.testacc()
+        for d in data[:len(data)//2]:
+            acc += d
+        for d in data[len(data)//2:]:
+            acc2 += d
+        acc += acc2
         np.testing.assert_array_almost_equal(acc.value, self.ref(data))
         self.assertEqual(acc.n, len(data))
 
