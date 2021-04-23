@@ -195,13 +195,10 @@ class Variance(Accumulator):
         self.var = Mean()
 
     def accumulate_obj(self, obj):
-        if self.n == 0:
-            M = 0
-        else:
-            M = self.mean.value  # mean from last iteration
+        delta1 = obj - self.mean.value
         self.mean += obj
         # (obj - M_n-1) * (obj - M_n) -- last and current iteration mean
-        self.var += (obj - M) * (obj - self.mean.value)
+        self.var +=  delta1 * (obj - self.mean.value)
 
     def accumulate_other(self, other):
         # for explanation of the formulas, see
@@ -218,7 +215,7 @@ class Variance(Accumulator):
 
     @property
     def value(self):
-        return self.var.value
+        return self.var.value * (self.n / (self.n - 1))
 
     @property
     def std(self):
