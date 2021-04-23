@@ -198,7 +198,7 @@ class Variance(Accumulator):
         delta1 = obj - self.mean.value
         self.mean += obj
         # (obj - M_n-1) * (obj - M_n) -- last and current iteration mean
-        self.var +=  delta1 * (obj - self.mean.value)
+        self.var += delta1 * (obj - self.mean.value)
 
     def accumulate_other(self, other):
         # for explanation of the formulas, see

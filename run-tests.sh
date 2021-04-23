@@ -23,7 +23,7 @@
 
 # THIS FILE MUST RUN WITHOUT ERROR ON EVERY COMMIT!
 
-set -o xtrace
+set -e
 
 flake8 --max-line-length=99 --show-source --statistics generatorpipeline
 nosetests . --exe
