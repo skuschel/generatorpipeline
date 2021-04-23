@@ -245,3 +245,30 @@ class RunningVariance(Variance):
     def lifetime(self, x):
         self.mean.lifetime = x
         self.var.lifetime = x
+
+
+class Covariance(Accumulator):
+    '''
+    Calculate the Covariance (matrix).
+
+    Returns the same as `numpy.cov`.
+    '''
+
+    def __init__(self):
+        self.mean = Mean()
+        self._cov = Mean()
+
+    def accumulate_obj(self, obj):
+        delta1 = obj - self.mean.value
+        self.mean += obj
+        delta2 = (obj - self.mean.value)
+        D = np.outer(delta1, delta2)
+        self._cov += D
+
+    @property
+    def n(self):
+        return self.mean.n
+
+    @property
+    def value(self):
+        return self._cov.value * (self.n / (self.n - 1))
