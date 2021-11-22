@@ -74,9 +74,12 @@ class pipeline():
             for el in arg:
                 ret = wrapper(el, **kwargs)  # f(el)
                 wrapper.el_processed += 1
-                if ret is not None or not self.skipNone:
-                    wrapper.el_yielded += 1
-                    yield ret
+                if not isiterator(ret):
+                    ret = (ret,)
+                for r in ret:
+                    if r is not None or not self.skipNone:
+                        wrapper.el_yielded += 1
+                        yield r
 
         def return_generator_parallel(arg, **kwargs):
             if self.verbose:
