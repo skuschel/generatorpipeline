@@ -28,7 +28,11 @@ __all__ = ['pipeline']
 
 class pipeline():
 
-    def __init__(self, nworkers=0, *, skipNone=True, extracache=0, verbose=False, maxtasksperchild=None):
+    def __init__(self, nworkers=0, *,
+                 skipNone=True,
+                 extracache=0,
+                 verbose=False,
+                 maxtasksperchild=None):
         '''
         Create a pipeline decorator.
 
@@ -55,7 +59,7 @@ class pipeline():
           been completed. By using this, memory leakage, too many open file handles or otherwise
           limited and blcked ressources can be freed again.
           However, this only counteracts the symptoms: If you need this, your
-          decorated function (or a package it is using) is clearly programmatic garbage. 
+          decorated function (or a package it is using) is clearly programmatic garbage.
         '''
         self.nworkers = nworkers
         self.cachelen = nworkers + extracache
