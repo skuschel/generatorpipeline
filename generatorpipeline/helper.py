@@ -24,4 +24,4 @@ __all__ = ['isiterator']
 
 
 def isiterator(x):
-    return isinstance(x, collections.Iterator)
+    return isinstance(x, collections.abc.Iterator)
