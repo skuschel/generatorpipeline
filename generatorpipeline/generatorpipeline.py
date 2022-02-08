@@ -28,7 +28,11 @@ __all__ = ['pipeline']
 
 class pipeline():
 
-    def __init__(self, nworkers=0, *, skipNone=True, extracache=0, verbose=False):
+    def __init__(self, nworkers=0, *,
+                 skipNone=True,
+                 extracache=0,
+                 verbose=False,
+                 maxtasksperchild=None):
         '''
         Create a pipeline decorator.
 
@@ -50,11 +54,18 @@ class pipeline():
           elements to be cached, without having additional workers.
         verbose = False,
           activate verbose print statements. For debugging only.
+        maxtasksperchild = None,
+          given to `multiprocessing.Pool`. Resets a worker after `maxtasksperchild` have
+          been completed. By using this, memory leakage, too many open file handles or otherwise
+          limited and blcked ressources can be freed again.
+          However, this only counteracts the symptoms: If you need this, your
+          decorated function (or a package it is using) is clearly programmatic garbage.
         '''
         self.nworkers = nworkers
         self.cachelen = nworkers + extracache
         self.verbose = verbose
         self.skipNone = skipNone
+        self.maxtasksperchild = maxtasksperchild
 
     def __call__(self, func):
         '''
@@ -84,7 +95,7 @@ class pipeline():
         def return_generator_parallel(arg, **kwargs):
             if self.verbose:
                 print(f'parallel execution of "{f.__name__}" with {self.nworkers} workers.')
-            with Pool(self.nworkers) as pool:
+            with Pool(self.nworkers, maxtasksperchild=self.maxtasksperchild) as pool:
                 cache = deque()
                 for el in arg:
                     cache.append(pool.apply_async(wrapper, (el,), kwargs))
