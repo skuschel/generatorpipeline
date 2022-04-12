@@ -39,15 +39,18 @@ class pipeline():
         kwargs
         -------
         nworkers = 0
-          number of workers to be used for this execution.
-          0 (default) will be single threaded execution in the current process.
-          Will create about 0.6 micro-second overhead
-          per call.
-          Caution: If workers > 0, then the inter-process communication will
-          create overhead of about 125 micro-seconds per function call!
+          given to `multiprocessing.Pool`.
+          Number of workers to be used for this execution.
+          0 (default) will be single threaded execution in the CURRENT process.
+          The decorator will create about 0.6 micro-second overhead
+          per function call.
+          If workers > 0, then the inter-process communication will
+          create overhead of about 125 micro-seconds per function call.
 
         skipNone = True,
-          when False, also `None` objects will be returned. Default is to skip `None`.
+          when False, also `None` objects will be returned.
+          The default is to skip `None` and instead continue with
+          the next non-None element in the generator.
         extracache = 0,
           changes the number of cached elements. By default, the cache will
           hold `nworkers` many elements. `extracache` will specify additional
@@ -56,10 +59,13 @@ class pipeline():
           activate verbose print statements. For debugging only.
         maxtasksperchild = None,
           given to `multiprocessing.Pool`. Resets a worker after `maxtasksperchild` have
-          been completed. By using this, memory leakage, too many open file handles or otherwise
-          limited and blcked ressources can be freed again.
+          been executed. By using this, memory leakage, too many open file handles or otherwise
+          limited and blocked resources will be freed again.
           However, this only counteracts the symptoms: If you need this, your
-          decorated function (or a package it is using) is clearly programmatic garbage.
+          decorated function (or a package it is using) does have a memory leak or is
+          getting blocked by another resource. This is also one of the first things to try
+          when execution on a large dataset fails, that has worked on a small dataset.
+          Try setting this to the number of elements in the small dataset.
         '''
         self.nworkers = nworkers
         self.cachelen = nworkers + extracache
