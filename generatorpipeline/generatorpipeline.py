@@ -26,9 +26,9 @@ from .helper import isiterator
 __all__ = ['pipeline']
 
 
-class pipeline():
+class Pipeline():
 
-    def __init__(self, nworkers=0, *,
+    def __init__(self, func, nworkers=0, *,
                  skipNone=True,
                  extracache=0,
                  verbose=False,
@@ -67,78 +67,79 @@ class pipeline():
           when execution on a large dataset fails, that has worked on a small dataset.
           Try setting this to the number of elements in the small dataset.
         '''
+        if not callable(func):
+            raise TypeError("must be a callable")
+        self.func = func
         self.nworkers = nworkers
         self.cachelen = nworkers + extracache
         self.verbose = verbose
         self.skipNone = skipNone
         self.maxtasksperchild = maxtasksperchild
+        functools.update_wrapper(self, func)
+        # collect statistics
+        self.el_processed = 0
+        self.el_yielded = 0
 
-    def __call__(self, func):
-        '''
-        Decorate the function `func` to be used as a pipeline.
-
-        kwargs to the decorated function will be forwarded to every call of f.
-        '''
-        if not callable(func):
-            raise TypeError("must be a callable")
-        return self._build_pipeline(func)
-
-    def _build_pipeline(self, f):
-
-        def return_generator_serial(arg, **kwargs):
-            if self.verbose:
-                print(f'serial execution of "{f.__name__}"')
-            for el in arg:
-                ret = wrapper(el, **kwargs)  # f(el)
-                wrapper.el_processed += 1
-                if not isiterator(ret):
-                    ret = (ret,)
-                for r in ret:
-                    if r is not None or not self.skipNone:
-                        wrapper.el_yielded += 1
-                        yield r
-
-        def return_generator_parallel(arg, **kwargs):
-            if self.verbose:
-                print(f'parallel execution of "{f.__name__}" with {self.nworkers} workers.')
-            with Pool(self.nworkers, maxtasksperchild=self.maxtasksperchild) as pool:
-                cache = deque()
-                for el in arg:
-                    cache.append(pool.apply_async(wrapper, (el,), kwargs))
-                    if len(cache) < self.cachelen:
-                        # fill cache
-                        continue
-                    ret = cache.popleft().get()
-                    wrapper.el_processed += 1
-                    if ret is not None or not self.skipNone:
-                        wrapper.el_yielded += 1
-                        yield ret
-                # flush cache
-                while len(cache) > 0:
-                    ret = cache.popleft().get()
-                    wrapper.el_processed += 1
-                    if ret is not None or not self.skipNone:
-                        wrapper.el_yielded += 1
-                        yield ret
-
-        @functools.wraps(f)
-        def wrapper(arg, **kwargs):
-            if isiterator(arg):
-                if self.nworkers == 0:
-                    return return_generator_serial(arg, **kwargs)
-                else:
-                    return return_generator_parallel(arg, **kwargs)
+    def __call__(self, arg, **kwargs):
+        # Docstring will be set in __init__ by `functools.update_wrapper`
+        print(arg)
+        if isiterator(arg):
+            if self.nworkers == 0:
+                return self._call_serial(arg, **kwargs)
             else:
-                if self.verbose:
-                    print(f'executing wrapped function "{f.__name__}" (PID: {os.getpid()}).')
-                return f(arg, **kwargs)
-        wrapper.nworkers = self.nworkers
-        wrapper.cachelen = self.cachelen
-        wrapper.skipNone = self.skipNone
-        wrapper.el_processed = 0
-        wrapper.el_yielded = 0
-        wrapper.pipe_info = lambda: Pipe_info(wrapper.el_processed, wrapper.el_yielded)
-        return wrapper
+                return self._call_parallel(arg, **kwargs)
+        else:
+            if self.verbose:
+                print(f'executing wrapped function "{f.__name__}" (PID: {os.getpid()}).')
+                return self.func(arg, **kwargs)
+
+    def _call_serial(self, arg, **kwargs):
+        if self.verbose:
+            print(f'serial execution of "{f.__name__}"')
+        for el in arg:
+            ret = self(el, **kwargs)  # f(el)
+            self.el_processed += 1
+            if not isiterator(ret):
+                ret = (ret,)
+            for r in ret:
+                if r is not None or not self.skipNone:
+                    self.el_yielded += 1
+                    yield r
+
+    def _call_parallel(self, arg, **kwargs):
+        if self.verbose:
+            print(f'parallel execution of "{f.__name__}" with {self.nworkers} workers.')
+        with Pool(self.nworkers, maxtasksperchild=self.maxtasksperchild) as pool:
+            cache = deque()
+            for el in arg:
+                cache.append(pool.apply_async(wrapper, (el,), kwargs))
+                if len(cache) < self.cachelen:
+                    # fill cache
+                    continue
+                ret = cache.popleft().get()
+                self.el_processed += 1
+                if ret is not None or not self.skipNone:
+                    self.el_yielded += 1
+                    yield ret
+            # flush cache
+            while len(cache) > 0:
+                ret = cache.popleft().get()
+                self.el_processed += 1
+                if ret is not None or not self.skipNone:
+                    self.el_yielded += 1
+                    yield ret
+
+    def pipe_info(self):
+        return Pipe_info(self.el_processed, self.el_yielded)
+
+
+def pipeline(*args, **kwargs):
+    def ret(func):
+        return Pipeline(func, *args, **kwargs)
+    return ret
+
+
+pipeline.__doc__ = Pipeline.__doc__
 
 
 class Pipe_info():
