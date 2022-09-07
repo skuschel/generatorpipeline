@@ -111,7 +111,7 @@ class Pipeline():
         with Pool(self.nworkers, maxtasksperchild=self.maxtasksperchild) as pool:
             cache = deque()
             for el in arg:
-                cache.append(pool.apply_async(self.func, (el,), kwargs))
+                cache.append(pool.apply_async(self, (el,), kwargs))
                 if len(cache) < self.cachelen:
                     # fill cache
                     continue
@@ -127,6 +127,18 @@ class Pipeline():
                 if ret is not None or not self.skipNone:
                     self.el_yielded += 1
                     yield ret
+
+    def __getstate__(self):
+        import dill
+        return dill.dumps((self.func, self.verbose, self.skipNone,
+                           self.el_processed, self.el_yielded))
+
+    def __setstate__(self, state):
+        import dill
+        (self.func, self.verbose, self.skipNone,
+         self.el_processed, self.el_yielded) = dill.loads(state)
+        self.nworkers = 0  # ensure serial execution after sending to another process
+        return self
 
     def pipe_info(self):
         return Pipe_info(self.el_processed, self.el_yielded)
