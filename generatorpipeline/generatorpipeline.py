@@ -68,7 +68,7 @@ class Pipeline():
           Try setting this to the number of elements in the small dataset.
         '''
         if not callable(func):
-            raise TypeError("must be a callable")
+            raise TypeError("{} must be a callable".format(func))
         self.func = func
         self.nworkers = nworkers
         self.cachelen = nworkers + extracache
@@ -81,8 +81,7 @@ class Pipeline():
         self.el_yielded = 0
 
     def __call__(self, arg, **kwargs):
-        # Docstring will be set in __init__ by `functools.update_wrapper`
-        print(arg)
+        # No Docstring! It has been set in `__init__` by `functools.update_wrapper`
         if isiterator(arg):
             if self.nworkers == 0:
                 return self._call_serial(arg, **kwargs)
@@ -90,12 +89,12 @@ class Pipeline():
                 return self._call_parallel(arg, **kwargs)
         else:
             if self.verbose:
-                print(f'executing wrapped function "{f.__name__}" (PID: {os.getpid()}).')
-                return self.func(arg, **kwargs)
+                print(f'executing wrapped function "{self.func.__name__}" (PID: {os.getpid()}).')
+            return self.func(arg, **kwargs)
 
     def _call_serial(self, arg, **kwargs):
         if self.verbose:
-            print(f'serial execution of "{f.__name__}"')
+            print(f'serial execution of "{self.func.__name__}"')
         for el in arg:
             ret = self(el, **kwargs)  # f(el)
             self.el_processed += 1
@@ -108,11 +107,11 @@ class Pipeline():
 
     def _call_parallel(self, arg, **kwargs):
         if self.verbose:
-            print(f'parallel execution of "{f.__name__}" with {self.nworkers} workers.')
+            print(f'parallel execution of "{self.func.__name__}" with {self.nworkers} workers.')
         with Pool(self.nworkers, maxtasksperchild=self.maxtasksperchild) as pool:
             cache = deque()
             for el in arg:
-                cache.append(pool.apply_async(wrapper, (el,), kwargs))
+                cache.append(pool.apply_async(self.func, (el,), kwargs))
                 if len(cache) < self.cachelen:
                     # fill cache
                     continue
