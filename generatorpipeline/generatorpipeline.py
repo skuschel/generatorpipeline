@@ -19,6 +19,7 @@
 import functools
 from multiprocessing import Pool
 import os
+import inspect
 from collections import deque
 from .helper import isiterator
 
@@ -150,7 +151,8 @@ def pipeline(*args, **kwargs):
     return ret
 
 
-pipeline.__doc__ = Pipeline.__doc__
+pipeline.__doc__ = Pipeline.__init__.__doc__
+pipeline.__signature__ = inspect.signature(Pipeline)
 
 
 class Pipe_info():
