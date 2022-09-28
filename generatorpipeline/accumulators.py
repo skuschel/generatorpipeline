@@ -32,10 +32,10 @@ class Accumulator(abc.ABC):
     '''
 
     @abc.abstractmethod
-    def accumulate_obj(self, other):
+    def _accumulate_obj(self, obj):
         pass
 
-    def accumulate_other(self, other):
+    def _accumulate_other(self, other):
         s = '`accumulate_other(self, other)` must be defined to accumulate two accumulators.'
         raise NotImplementedError(s)
 
@@ -60,9 +60,9 @@ class Accumulator(abc.ABC):
 
     def accumulate(self, other):
         if isinstance(other, self.__class__):
-            self.accumulate_other(other)
+            self._accumulate_other(other)
         else:
-            self.accumulate_obj(other)
+            self._accumulate_obj(other)
         return self
 
     __iadd__ = accumulate
@@ -78,14 +78,14 @@ class _BinaryOpAccumulatorNumpy(Accumulator):
         self.acc = None
         self._n = 0
 
-    def accumulate_obj(self, obj):
+    def _accumulate_obj(self, obj):
         self._n += 1
         if self.acc is None:
             self.acc = np.asarray(obj)
             return
         self.__class__._operator(self.acc, obj, out=self.acc)
 
-    def accumulate_other(self, other):
+    def _accumulate_other(self, other):
         self.__class__._operator(self.acc, other.acc, out=self.acc)
         self._n += other._n
 
@@ -125,11 +125,11 @@ class Mean(Accumulator):
         self._val = value
         self._n = n
 
-    def accumulate_obj(self, obj):
+    def _accumulate_obj(self, obj):
         self._n += 1
         self._val += obj / self._n - self._val / self._n
 
-    def accumulate_other(self, other):
+    def _accumulate_other(self, other):
         ntot = self.n + other.n
         self._val = self._val * (self.n / ntot) + other._val * (other.n / ntot)
         self._n += other._n
@@ -151,7 +151,7 @@ class RunningMean(Accumulator):
     '''
     Calculate the exponential running mean.
 
-    Note: `accumulate_other` is not implemented as the order of
+    Note: `_accumulate_other` is not implemented as the order of
     elements matters.
     '''
 
@@ -160,7 +160,7 @@ class RunningMean(Accumulator):
         self._n = 0
         self.lifetime = lifetime
 
-    def accumulate_obj(self, obj):
+    def _accumulate_obj(self, obj):
         self._n += 1
         alpha = max(self.alpha, 1/self._n)
         self.acc = self.acc * (1 - alpha) + obj * alpha
@@ -194,13 +194,13 @@ class Variance(Accumulator):
         self.mean = Mean()
         self.var = Mean()
 
-    def accumulate_obj(self, obj):
+    def _accumulate_obj(self, obj):
         delta1 = obj - self.mean.value
         self.mean += obj
         # (obj - M_n-1) * (obj - M_n) -- last and current iteration mean
         self.var += delta1 * (obj - self.mean.value)
 
-    def accumulate_other(self, other):
+    def _accumulate_other(self, other):
         # for explanation of the formulas, see
         # https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Parallel_algorithm
         dmean = self.mean.value - other.mean.value
@@ -255,14 +255,14 @@ class Covariance(Accumulator):
         self.mean = Mean()
         self._cov = Mean()
 
-    def accumulate_obj(self, obj):
+    def _accumulate_obj(self, obj):
         delta1 = obj - self.mean.value
         self.mean += obj
         delta2 = (obj - self.mean.value)
         D = np.outer(delta1, delta2)
         self._cov += D
 
-    def accumulate_other(self, other):
+    def _accumulate_other(self, other):
         # for explanation of the formulas, see
         # https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Parallel_algorithm
         dmean = self.mean.value - other.mean.value
