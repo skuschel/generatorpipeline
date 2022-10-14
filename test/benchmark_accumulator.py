@@ -35,14 +35,14 @@ def bench_variance(n):
         var += observations
     t1 = time.time()
     passtime = (t1 - t0) * 1e3 / n
-    print('varaince (500): {:.3f} ms/observation'.format(passtime))
+    print('varaince ({:n}): {:.3f} ms/observation'.format(n, passtime))
 
     t0 = time.time()
     observations = np.random.random((n, 10000))
     covnp = np.var(observations)
     t1 = time.time()
     passtime = (t1 - t0) * 1e3 / n
-    print('varaince numpy (500): {:.3f} ms/observation'.format(passtime))
+    print('varaince numpy ({:n}): {:.3f} ms/observation'.format(n, passtime))
 
 
 def bench_mean(n):
@@ -55,14 +55,14 @@ def bench_mean(n):
         acc += observations
     t1 =  time.time()
     passtime = (t1 - t0) * 1e6 / n
-    print('Mean (500): {:.3f} us/observation'.format(passtime))
+    print('Mean ({:n}): {:.3f} us/observation'.format(n, passtime))
 
     t0 = time.time()
     observations = np.random.random((n,500))
     _ = np.mean(observations, axis=0)
     t1 =  time.time()
     passtime = (t1 - t0) * 1e6 / n
-    print('Mean numpy (500): {:.3f} us/observation'.format(passtime))
+    print('Mean numpy ({:n}): {:.3f} us/observation'.format(n, passtime))
 
 def main(n=int(500)):
     bench_covariance(n)
