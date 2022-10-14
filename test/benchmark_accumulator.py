@@ -25,6 +25,26 @@ def bench_covariance(n):
     print('covmatrix numpy (500x500): {:.3f} ms/observation'.format(passtime))
 
 
+def bench_variance(n):
+    np.random.seed(42)
+    var = gp.accumulators.Variance()
+
+    t0 = time.time()
+    for i in range(n):
+        observations = np.random.random(10000)
+        var += observations
+    t1 = time.time()
+    passtime = (t1 - t0) * 1e3 / n
+    print('varaince (500): {:.3f} ms/observation'.format(passtime))
+
+    t0 = time.time()
+    observations = np.random.random((n, 10000))
+    covnp = np.var(observations)
+    t1 = time.time()
+    passtime = (t1 - t0) * 1e3 / n
+    print('varaince numpy (500): {:.3f} ms/observation'.format(passtime))
+
+
 def bench_mean(n):
     np.random.seed(42)
     acc = gp.accumulators.Mean()
@@ -47,6 +67,7 @@ def bench_mean(n):
 def main(n=int(500)):
     bench_covariance(n)
     bench_mean(n*10)
+    bench_variance(n*2)
 
 
 
