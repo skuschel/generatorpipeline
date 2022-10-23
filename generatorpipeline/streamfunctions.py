@@ -102,7 +102,7 @@ def savestream(gen, file, compresslevel=1):
                          compression=zipfile.ZIP_DEFLATED,
                          compresslevel=compresslevel) as myzip:
         for n, el in enumerate(gen):
-            with myzip.open('{:06d}'.format(n), 'w') as zipobj:
+            with myzip.open('data/{:06d}'.format(n), 'w') as zipobj:
                 zipobj.write(pickle.dumps(el))
             yield el
 
