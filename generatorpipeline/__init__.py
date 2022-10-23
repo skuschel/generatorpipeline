@@ -14,7 +14,7 @@ from . import accumulators  # noqa
 
 __all__ = ['pipeline']
 __all__ += ['isiterator']
-__all__ += ['simplecache', 'observe', 'observe_time']
+__all__ += ['simplecache', 'observe', 'observe_time', 'savestream', 'loadstream']
 
 from ._version import get_versions  # noqa
 __version__ = get_versions()['version']
