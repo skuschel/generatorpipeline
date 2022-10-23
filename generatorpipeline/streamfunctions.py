@@ -93,12 +93,14 @@ def observe_time(gen, *funcs, interval=0.5):
 
 
 # Save and load
-def savestream(gen, file):
+def savestream(gen, file, compresslevel=1):
     '''
     save a stream into a zip file. The stream can be
     replayed using `loadstream`.
     '''
-    with zipfile.ZipFile(file, 'w') as myzip:
+    with zipfile.ZipFile(file, 'w',
+                         compression=zipfile.ZIP_DEFLATED,
+                         compresslevel=compresslevel) as myzip:
         for n, el in enumerate(gen):
             with myzip.open('{:06d}'.format(n), 'w') as zipobj:
                 zipobj.write(pickle.dumps(el))
