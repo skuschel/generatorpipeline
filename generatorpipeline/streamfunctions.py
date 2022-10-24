@@ -23,6 +23,8 @@ This module offers functions which are gernerally helpful when working with gene
 import time
 from collections import deque
 from .helper import isiterator
+import pickle
+import zipfile
 
 
 def simplecache(gen, length=8):
@@ -88,3 +90,28 @@ def observe_time(gen, *funcs, interval=0.5):
             for f in funcs:
                 f(el)
         yield el
+
+
+# Save and load
+def savestream(gen, file, compresslevel=1):
+    '''
+    save a stream into a zip file. The stream can be
+    replayed using `loadstream`.
+    '''
+    with zipfile.ZipFile(file, 'w',
+                         compression=zipfile.ZIP_DEFLATED,
+                         compresslevel=compresslevel) as myzip:
+        for n, el in enumerate(gen):
+            with myzip.open('data/{:06d}'.format(n), 'w') as zipobj:
+                zipobj.write(pickle.dumps(el))
+            yield el
+
+
+def loadstream(file):
+    '''
+    returns a generator, that replayes the stream from a zipfile.
+    '''
+    with zipfile.ZipFile(file, 'r') as myzip:
+        for zi in myzip.infolist():
+            with myzip.open(zi, 'r') as zipobj:
+                yield pickle.loads(zipobj.read())
