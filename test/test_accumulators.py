@@ -40,7 +40,7 @@ class _TestAccumulator():
         np.testing.assert_array_almost_equal(acc.value, self.ref(data))
         self.assertEqual(acc.n, len(data))
 
-    def test_2d(self):
+    def test_2d_accumulate_other(self):
         np.random.seed(42)
         data = np.random.random((100, 5))
         acc = self.testacc()
