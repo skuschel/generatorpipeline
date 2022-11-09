@@ -393,7 +393,8 @@ class QuantileEstimator(Accumulator):
     @property
     def _m_desired(self):
         if self.n < 4:
-            err = '''Desired positions can only be calculated after minimum 5 observations have been collected! 
+            err = '''Desired positions can only be calculated
+            after minimum 5 observations have been collected!
             Current number is {}'''.format(self.n)
             raise ValueError(err)
         ret = [1.,
