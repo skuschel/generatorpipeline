@@ -74,3 +74,6 @@ target/
 # if using spyder for development
 .spyderworkspace
 .spyderproject
+
+# if using Pycharm for development
+.idea/
