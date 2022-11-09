@@ -309,26 +309,40 @@ class QuantileEstimator(Accumulator):
     proposed by Jain and Chlamtac in the paper
     https://doi.org/10.1145/4372.4378.
 
-    Robert Radloff 2022
-
     The algorithm to calculate the p-quantile
-    (p = 0.5 for the median)works the following:
+    (p = 0.5 for the median) roughly works the following:
 
-    Accumulate the first five objects and sort them.
-    This yields a list with the elements x_1, x_2, ..., x_5.
+    Accumulate the first five observations and sort them.
+    This yields a list with 5 marker heights.
+    Each marker is assigned a marker position (1, 2, ..., 5)
 
-    Assign marker positions n_i <- i (i = 1, ..., 5),
-    marker heights q_i <- x_i
-    and the desired marker positions
-    n'_1 = 1
-    n'_2 = 1 + 2*p
-    n'_3 = 1 + 4*p
-    n'_4 = 3 + 2*p
-    n'_5 = 5
-    (real values)
+    For each subsequent observation two operations are performed:
+    First:
+    Check between which markers the observation fits and increment
+    the marker heights of every marker that is higher.
+    Only replace the marker height by the value of the observation
+    if a new minimum or maximum is found.
 
-    To be finished...
+    Second:
+    Adjust the height of the non-extreme markers (markers 2 to 4)
+    if they differ from their desired position 1 or more
+    and if incrementing the position of considered marker
+    does not lead to a collision with another marker
+    (the difference of position of the next higher or lower
+    marker and the considered marker must be > 1 (, -1)).
 
+    The adjustment of the marker heights and positions is
+    performed via a parabolic interpolation (linear interpolation
+    in some situations where the parabolic methode cannot be used).
+
+    Marker positions are always only adjusted in steps of 1, -1!
+
+    The estimation of the p-quantile is then given by the marker height
+    of the third marker (`self.m_height[2]`).
+
+    Obtain the approximate value via `self.value`.
+
+    Robert Radloff 2022
     '''
 
     def __init__(self, p):
@@ -341,10 +355,8 @@ class QuantileEstimator(Accumulator):
         # of _accumulate_obj.
         # Thus, during the call of
         # _accumulate_obj it acts as N-1 instead.
-        self.m_height = 5 * [None]
-        self.m_pos = list(range(1, 6))
-
-        self.quant = None
+        self.m_height = 5 * [None]  # marker heights
+        self.m_pos = list(range(1, 6))  # marker positions
 
     def _accumulate_obj(self, obj):
         if self._n < 4:
@@ -371,19 +383,18 @@ class QuantileEstimator(Accumulator):
         self._n += 1
 
     @property
-    def m_posdiff(self):
+    def _m_posdiff(self):
         '''
         Calculate the difference between the marker positions
-        `m_pos` and the desired marker positions `m_desired`.
+        `m_pos` and the desired marker positions `_m_desired`.
         '''
-        return [dp - p for dp, p in zip(self.m_desired, self.m_pos)]
+        return [dp - p for dp, p in zip(self._m_desired, self.m_pos)]
 
     @property
-    def m_desired(self):
+    def _m_desired(self):
         if self.n < 4:
-            err = 'Desired positions can only be calculated'
-            err += 'after minimum 5 observations have been collected!'
-            err += 'Current number is {}'.format(self.n)
+            err = '''Desired positions can only be calculated after minimum 5 observations have been collected! 
+            Current number is {}'''.format(self.n)
             raise ValueError(err)
         ret = [1.,
                self.n * 0.5 * self.p + 1,
@@ -396,14 +407,14 @@ class QuantileEstimator(Accumulator):
         '''
         This function implements step B3 from box 1 in the Jain and Chlamtac paper.
         '''
-        assert self.m_posdiff[0] == 0 and self.m_posdiff[-1] == 0
+        assert self._m_posdiff[0] == 0 and self._m_posdiff[-1] == 0
         for i in range(1, 4):
-            posdiff = self.m_posdiff
-            if ((posdiff[i] >= 1) and (self.m_pos[i + 1] - self.m_pos[i] > 1))\
-                    or ((posdiff[i] <= -1) and (self.m_pos[i - 1] - self.m_pos[i] < -1)):
+            posdiff = self._m_posdiff
+            if ((posdiff[i] >= 1) and (self.m_pos[i+1] - self.m_pos[i] > 1))\
+                    or ((posdiff[i] <= -1) and (self.m_pos[i-1] - self.m_pos[i] < -1)):
                 d = self._sign(posdiff[i])
-                q_new = self._parabolic(self.m_height[i - 1:i + 2], self.m_pos[i - 1:i + 2], d)
-                if self.m_height[i - 1] < q_new and q_new < self.m_height[i + 1]:
+                q_new = self._parabolic(self.m_height[i - 1:i + 2], self.m_pos[i-1:i+2], d)
+                if self.m_height[i-1] < q_new and q_new < self.m_height[i+1]:
                     self.m_height[i] = q_new  # set marker height to new value
                 else:
                     heights = (self.m_height[i], self.m_height[i+d])
