@@ -33,5 +33,6 @@ setup(name='generatorpipeline',
       url='https://github.com/skuschel/generatorpipeline',
       install_requires=['dill'],
       extras_require={'network': ['pyzmq'],
-                      'accumulators': ['numpy']},
+                      'accumulators': ['numpy'],
+                      'full': ['numpy', 'pyzmq']},
       description='Parallelize your data-processing pipelines with just a decorator.')

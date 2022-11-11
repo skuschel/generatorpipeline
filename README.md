@@ -10,7 +10,7 @@ Please see the [tutorial notebook](generatorpipeline-tutorial.ipynb) for an over
 Python 2 is NOT supported. You must use __python version 3.6__ or higher! Install using
 
 ```
-pip install --user git+https://github.com/skuschel/generatorpipeline.git
+pip install --user generatorpipeline[full]@git+https://github.com/skuschel/generatorpipeline.git
 ```
 
 
