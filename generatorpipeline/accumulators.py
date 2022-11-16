@@ -347,6 +347,7 @@ class QuantileEstimator(Accumulator):
 
     def __init__(self, p):
         self.p = p
+        self._qdesired = np.asarray([0, 0.5 * p, p, 0.5 * (p + 1), 1], dtype=float)
         self._n = 0
         # Important note:
         # in this implementation n
@@ -388,21 +389,11 @@ class QuantileEstimator(Accumulator):
         Calculate the difference between the marker positions
         `m_pos` and the desired marker positions `_m_desired`.
         '''
-        return [dp - p for dp, p in zip(self._m_desired, self.m_pos)]
+        return self._m_desired - self.m_pos
 
     @property
     def _m_desired(self):
-        if self.n < 4:
-            err = '''Desired positions can only be calculated
-            after minimum 5 observations have been collected!
-            Current number is {}'''.format(self.n)
-            raise ValueError(err)
-        ret = [0.,
-               self.n * 0.5 * self.p,
-               self.n * self.p,
-               self.n * 0.5 * (self.p + 1),
-               float(self.n)]
-        return ret
+        return self._qdesired * self.n
 
     def _adjust_heights(self):
         '''
@@ -413,7 +404,7 @@ class QuantileEstimator(Accumulator):
             posdiff = self._m_posdiff
             if ((posdiff[i] >= 1) and (self.m_pos[i+1] - self.m_pos[i] > 1))\
                     or ((posdiff[i] <= -1) and (self.m_pos[i-1] - self.m_pos[i] < -1)):
-                d = self._sign(posdiff[i])
+                d = int(np.sign(posdiff[i]))
                 q_new = self._parabolic(self.m_height[i - 1:i + 2], self.m_pos[i-1:i+2], d)
                 if self.m_height[i-1] < q_new and q_new < self.m_height[i+1]:
                     self.m_height[i] = q_new  # set marker height to new value
@@ -458,22 +449,6 @@ class QuantileEstimator(Accumulator):
                                       + (n3 - n2 - d)
                                       * (q2 - q1) / (n2 - n1))
         return q_new
-
-    @staticmethod
-    def _sign(n):
-        '''
-        Simple sign function. Returns -1 if n < 0 and 1 if n > 0.
-        Not implemented for 0.
-        '''
-        t = type(n)
-        if t is not float:
-            raise ValueError('_sign is only implemented for floats.')
-        if n == 0:
-            raise ValueError('n should never be 0! Something went wrong.')
-        if n < 0:
-            return -1
-        else:
-            return 1
 
     @property
     def n(self):
