@@ -347,6 +347,7 @@ class QuantileEstimator(Accumulator):
 
     def __init__(self, p):
         self.p = p
+        # desired quantile markers
         self._qdesired = np.asarray([0, 0.5 * p, p, 0.5 * (p + 1), 1], dtype=float)
         self._n = 0
         # Important note:
@@ -356,15 +357,15 @@ class QuantileEstimator(Accumulator):
         # of _accumulate_obj.
         # Thus, during the call of
         # _accumulate_obj it acts as N-1 instead.
-        self.m_height = 5 * [None]  # marker heights
-        self.m_pos = list(range(5))  # marker positions
+        self.m_height = len(self._qdesired) * [None]  # marker heights
+        self.m_pos = list(range(len(self._qdesired)))  # marker positions
 
     def _accumulate_obj(self, obj):
-        if self._n < 4:
+        if self._n < len(self._qdesired) - 1:
             self.m_height[self._n] = obj
             self._n += 1
             return
-        elif self._n == 4:
+        elif self._n == len(self._qdesired) - 1:
             self.m_height[self._n] = obj
             self.m_height = sorted(self.m_height)
         else:
@@ -400,7 +401,7 @@ class QuantileEstimator(Accumulator):
         This function implements step B3 from box 1 in the Jain and Chlamtac paper.
         '''
         assert self._m_posdiff[0] == 0 and self._m_posdiff[-1] == 0
-        for i in range(1, 4):
+        for i in range(1, len(self._qdesired) - 1):
             posdiff = self._m_posdiff
             if ((posdiff[i] >= 1) and (self.m_pos[i+1] - self.m_pos[i] > 1))\
                     or ((posdiff[i] <= -1) and (self.m_pos[i-1] - self.m_pos[i] < -1)):
