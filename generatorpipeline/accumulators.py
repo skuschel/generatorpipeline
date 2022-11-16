@@ -218,6 +218,10 @@ class Variance(Accumulator):
         return self.var.value * (self.n / (self.n - 1))
 
     @property
+    def rms(self):
+        return self.var.value
+
+    @property
     def std(self):
         return np.sqrt(self.value)
 
@@ -278,6 +282,10 @@ class Covariance(Accumulator):
     @property
     def value(self):
         return self._cov.value * (self.n / (self.n - 1))
+
+    @property
+    def rms(self):
+        return self._cov.value
 
 
 class RunningCovariance(Covariance):
