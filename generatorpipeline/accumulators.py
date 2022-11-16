@@ -356,7 +356,7 @@ class QuantileEstimator(Accumulator):
         # Thus, during the call of
         # _accumulate_obj it acts as N-1 instead.
         self.m_height = 5 * [None]  # marker heights
-        self.m_pos = list(range(1, 6))  # marker positions
+        self.m_pos = list(range(5))  # marker positions
 
     def _accumulate_obj(self, obj):
         if self._n < 4:
@@ -377,7 +377,7 @@ class QuantileEstimator(Accumulator):
             for i, h in enumerate(self.m_height[1:], start=1):
                 if obj <= h:
                     self.m_pos[i] += 1
-            assert self.m_pos[0] == 1 and self.m_pos[-1] == self.n + 1
+            assert self.m_pos[0] == 0 and self.m_pos[-1] == self.n
         self._adjust_heights()
         assert all([self.m_height[i] <= self.m_height[i+1] for i in range(len(self.m_height) - 1)])
         self._n += 1
@@ -397,11 +397,11 @@ class QuantileEstimator(Accumulator):
             after minimum 5 observations have been collected!
             Current number is {}'''.format(self.n)
             raise ValueError(err)
-        ret = [1.,
-               self.n * 0.5 * self.p + 1,
-               self.n * self.p + 1,
-               self.n * 0.5 * (self.p + 1) + 1,
-               float(self.n + 1)]
+        ret = [0.,
+               self.n * 0.5 * self.p,
+               self.n * self.p,
+               self.n * 0.5 * (self.p + 1),
+               float(self.n)]
         return ret
 
     def _adjust_heights(self):
