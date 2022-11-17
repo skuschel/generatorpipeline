@@ -478,11 +478,18 @@ class CDFEstimator(Accumulator):
         return self._n
 
     @property
+    def q_actual(self):
+        '''
+        The actual quantile marker positions.
+        '''
+        return np.asarray(self.m_pos, dtype=float) / (self.n - 1)
+
+    @property
     def cdf(self):
         '''
         Cumulative Distribution Function
         '''
-        return self.m_height, self._qdesired
+        return self.m_height, self.q_actual
 
     @property
     def pdf(self):
