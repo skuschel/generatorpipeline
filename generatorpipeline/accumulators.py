@@ -363,13 +363,13 @@ class CDFEstimator(Accumulator):
     def __init__(self, points):
         if np.asanyarray(points).shape == ():
             # linear spacing (equiprobable cells)
-            self._qdesired = np.linspace(0, 1, points)
+            self.q_desired = np.linspace(0, 1, points)
         else:
             # just use the cells given
-            self._qdesired = np.array(points, dtype=float)
-            np.sort(self._qdesired)
-        self._qdesired.setflags(write=False)
-        if self._qdesired[0] != 0 or self._qdesired[-1] != 1:
+            self.q_desired = np.array(points, dtype=float)
+            np.sort(self.q_desired)
+        self.q_desired.setflags(write=False)
+        if self.q_desired[0] != 0 or self.q_desired[-1] != 1:
             raise ValueError('points must be 0 in first and 1 in the last element.')
         self._n = 0
         # Important note:
@@ -379,15 +379,15 @@ class CDFEstimator(Accumulator):
         # of _accumulate_obj.
         # Thus, during the call of
         # _accumulate_obj it acts as N-1 instead.
-        self.m_height = len(self._qdesired) * [None]  # marker heights
-        self.m_pos = list(range(len(self._qdesired)))  # marker positions
+        self.m_height = len(self.q_desired) * [None]  # marker heights
+        self.m_pos = list(range(len(self.q_desired)))  # marker positions
 
     def _accumulate_obj(self, obj):
-        if self._n < len(self._qdesired) - 1:
+        if self._n < len(self.q_desired) - 1:
             self.m_height[self._n] = obj
             self._n += 1
             return
-        elif self._n == len(self._qdesired) - 1:
+        elif self._n == len(self.q_desired) - 1:
             self.m_height[self._n] = obj
             self.m_height = sorted(self.m_height)
         else:
@@ -416,14 +416,14 @@ class CDFEstimator(Accumulator):
 
     @property
     def _m_desired(self):
-        return self._qdesired * self.n
+        return self.q_desired * self.n
 
     def _adjust_heights(self):
         '''
         This function implements step B3 from box 1 in the Jain and Chlamtac paper.
         '''
         assert self._m_posdiff[0] == 0 and self._m_posdiff[-1] == 0
-        for i in range(1, len(self._qdesired) - 1):
+        for i in range(1, len(self.q_desired) - 1):
             posdiff = self._m_posdiff
             if ((posdiff[i] >= 1) and (self.m_pos[i+1] - self.m_pos[i] > 1))\
                     or ((posdiff[i] <= -1) and (self.m_pos[i-1] - self.m_pos[i] < -1)):
@@ -481,6 +481,8 @@ class CDFEstimator(Accumulator):
     def q_actual(self):
         '''
         The actual quantile marker positions.
+
+        similar to `self.q_desired` but accurately calculated.
         '''
         return np.asarray(self.m_pos, dtype=float) / (self.n - 1)
 
