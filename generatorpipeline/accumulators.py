@@ -1,4 +1,5 @@
-# Copyright (C) 2020-2021 Stephan Kuschel
+# Copyright (C) 2020-2022 Stephan Kuschel
+#               2022 Robert Radloff
 #
 # This file is part of generatorpipeline.
 #
@@ -310,9 +311,15 @@ class RunningCovariance(Covariance):
         self._cov.lifetime = x
 
 
-class QuantileEstimator(Accumulator):
+class CDFEstimator(Accumulator):
     '''
-    Calculate approximate quantiles.
+    Estimates the Cumulative Distribution Function (CDF).
+    Arguments:
+    ----------
+      * points - number of positions for CDF sampling
+        OR
+        list of sampling positions
+
     This implementation follows the P^2 algorithm
     proposed by Jain and Chlamtac in the paper
     https://doi.org/10.1145/4372.4378.
@@ -353,10 +360,17 @@ class QuantileEstimator(Accumulator):
     Robert Radloff 2022
     '''
 
-    def __init__(self, p):
-        self.p = p
-        # desired quantile markers
-        self._qdesired = np.asarray([0, 0.5 * p, p, 0.5 * (p + 1), 1], dtype=float)
+    def __init__(self, points):
+        if np.asanyarray(points).shape == ():
+            # linear spacing (equiprobable cells)
+            self._qdesired = np.linspace(0, 1, points)
+        else:
+            # just use the cells given
+            self._qdesired = np.array(points, dtype=float)
+            np.sort(self._qdesired)
+        self._qdesired.setflags(write=False)
+        if self._qdesired[0] != 0 or self._qdesired[-1] != 1:
+            raise ValueError('points must be 0 in first and 1 in the last element.')
         self._n = 0
         # Important note:
         # in this implementation n
@@ -464,12 +478,31 @@ class QuantileEstimator(Accumulator):
         return self._n
 
     @property
+    def cdf(self):
+        '''
+        Cumulative Distribution Function
+        '''
+        return self.m_height, self._qdesired
+
+    @property
     def value(self):
-        return self.m_height[2]
+        return self.cdf
 
     @property
     def _debug_info(self):
         return self._n, self.m_pos, self.m_height
+
+
+class QuantileEstimator(CDFEstimator):
+
+    def __init__(self, p):
+        self.p = p
+        # desired quantile markers
+        super().__init__(np.asarray([0, 0.5 * p, p, 0.5 * (p + 1), 1], dtype=float))
+
+    @property
+    def value(self):
+        return self.m_height[2]
 
 
 class MedianEstimator(QuantileEstimator):
