@@ -485,6 +485,17 @@ class CDFEstimator(Accumulator):
         return self.m_height, self._qdesired
 
     @property
+    def pdf(self):
+        '''
+        Probability Density Function
+
+        This is simply the derivative of the CDF.
+        '''
+        x, y = self.cdf
+        pdf = x, np.gradient(y) / np.gradient(x)
+        return pdf
+
+    @property
     def min(self):
         return self.m_height[0]
 
