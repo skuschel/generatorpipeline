@@ -485,6 +485,14 @@ class CDFEstimator(Accumulator):
         return self.m_height, self._qdesired
 
     @property
+    def min(self):
+        return self.m_height[0]
+
+    @property
+    def max(self):
+        return self.m_height[-1]
+
+    @property
     def value(self):
         return self.cdf
 
