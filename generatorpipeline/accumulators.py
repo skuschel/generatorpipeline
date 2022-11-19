@@ -383,27 +383,31 @@ class CDFEstimator(Accumulator):
         self.m_pos = list(range(len(self.q_desired)))  # marker positions
 
     def _accumulate_obj(self, obj):
+        obj = np.asarray(obj)
+        obj = np.atleast_1d(obj)
         if self._n < len(self.q_desired) - 1:
             self.m_height[self._n] = obj
+            self.m_pos[self._n] = np.ones_like(obj) * self._n
             self._n += 1
             return
         elif self._n == len(self.q_desired) - 1:
             self.m_height[self._n] = obj
-            self.m_height = sorted(self.m_height)
+            self.m_pos[self._n] = np.ones_like(obj) * self._n
+            self.m_height = np.asarray(self.m_height)
+            self.m_height.sort(axis=0)
         else:
             # Check for new Min
-            if obj < self.m_height[0]:
-                self.m_height[0] = obj
+            idx = obj < self.m_height[0]
+            self.m_height[0, idx] = obj[idx]
             # Check for new Max
-            elif self.m_height[-1] < obj:
-                self.m_height[-1] = obj
+            idx = self.m_height[-1] < obj
+            self.m_height[-1, idx] = obj[idx]
             # Increment Marker positions
             for i, h in enumerate(self.m_height[1:], start=1):
-                if obj <= h:
-                    self.m_pos[i] += 1
-            assert self.m_pos[0] == 0 and self.m_pos[-1] == self.n
-        self._adjust_heights()
-        assert all([self.m_height[i] <= self.m_height[i+1] for i in range(len(self.m_height) - 1)])
+                idx = obj <= h
+                self.m_pos[i][idx] += 1
+            assert all(self.m_pos[0] == 0) and all(self.m_pos[-1] == self.n)
+            self._adjust_heights()
         self._n += 1
 
     @property
@@ -412,7 +416,7 @@ class CDFEstimator(Accumulator):
         Calculate the difference between the marker positions
         `m_pos` and the desired marker positions `_m_desired`.
         '''
-        return self._m_desired - self.m_pos
+        return [d - p for d, p in zip(self._m_desired, self.m_pos)]
 
     @property
     def _m_desired(self):
@@ -422,7 +426,7 @@ class CDFEstimator(Accumulator):
         '''
         This function implements step B3 from box 1 in the Jain and Chlamtac paper.
         '''
-        assert self._m_posdiff[0] == 0 and self._m_posdiff[-1] == 0
+        assert np.all(self._m_posdiff[0] == 0) and np.all(self._m_posdiff[-1] == 0)
         for i in range(1, len(self.q_desired) - 1):
             posdiff = self._m_posdiff
             if ((posdiff[i] >= 1) and (self.m_pos[i+1] - self.m_pos[i] > 1))\
