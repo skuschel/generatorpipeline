@@ -427,19 +427,21 @@ class CDFEstimator(Accumulator):
         This function implements step B3 from box 1 in the Jain and Chlamtac paper.
         '''
         assert np.all(self._m_posdiff[0] == 0) and np.all(self._m_posdiff[-1] == 0)
+        posdiff = self._m_posdiff
         for i in range(1, len(self.q_desired) - 1):
-            posdiff = self._m_posdiff
-            if ((posdiff[i] >= 1) and (self.m_pos[i+1] - self.m_pos[i] > 1))\
-                    or ((posdiff[i] <= -1) and (self.m_pos[i-1] - self.m_pos[i] < -1)):
-                d = int(np.sign(posdiff[i]))
-                q_new = self._parabolic(self.m_height[i - 1:i + 2], self.m_pos[i-1:i+2], d)
-                if self.m_height[i-1] < q_new and q_new < self.m_height[i+1]:
-                    self.m_height[i] = q_new  # set marker height to new value
-                else:
-                    heights = (self.m_height[i], self.m_height[i+d])
-                    positions = (self.m_pos[i], self.m_pos[i+d])
-                    self.m_height[i] = self._linear(heights, positions, d)
-                self.m_pos[i] += d
+            d = np.sign(posdiff[i])
+            q_new = self._parabolic(self.m_height[i - 1:i + 2], self.m_pos[i - 1:i + 2], d)
+            idx = (np.abs(posdiff[i]) >= 1) &  \
+                  ((self.m_pos[i+1] - self.m_pos[i] > 1) | (self.m_pos[i-1] - self.m_pos[i] < -1))
+            idxparabolic = (self.m_height[i-1][idx] < q_new[idx]) & \
+                           (q_new[idx] < self.m_height[i+1][idx])
+            self.m_height[i][idx][idxparabolic] = q_new[idx][idxparabolic]
+            # TODO: use linear interpolation elsewhere
+            # heights = (self.m_height[i], self.m_height[i+d[i]])
+            # positions = (self.m_pos[i], self.m_pos[i+d[i]])
+            # lininterp = self._linear(heights, positions, d[i])
+            # self.m_pos[i][idx][~idxparabolic] = lininterp[~idxparabolic]
+            self.m_pos[i][idx] += d[idx]
 
     @staticmethod
     def _linear(q, n, d):
@@ -467,8 +469,8 @@ class CDFEstimator(Accumulator):
         if len(n) != 3:
             raise ValueError('n does not contain 3 elements!')
 
-        if not all([n[i] <= n[i+1] for i in range(len(n)-1)]):
-            raise ValueError('n must be sorted!')
+        # if not all([n[i] <= n[i+1] for i in range(len(n)-1)]):
+        #    raise ValueError('n must be sorted!')
         q1, q2, q3 = q
         n1, n2, n3 = n
         q_new = q2 + d / (n3 - n1) * ((n2 - n1 + d)
