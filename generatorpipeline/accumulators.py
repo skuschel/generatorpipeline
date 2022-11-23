@@ -388,12 +388,11 @@ class CDFEstimator(Accumulator):
         if self._n < len(self.q_desired) - 1:
             self.m_height[self._n] = obj
             self.m_pos[self._n] = np.ones_like(obj) * self._n
-            self._n += 1
-            return
         elif self._n == len(self.q_desired) - 1:
             self.m_height[self._n] = obj
             self.m_pos[self._n] = np.ones_like(obj) * self._n
             self.m_height = np.asarray(self.m_height)
+            self.m_pos = np.asarray(self.m_pos)
             self.m_height.sort(axis=0)
         else:
             # Check for new Min
@@ -429,18 +428,25 @@ class CDFEstimator(Accumulator):
         assert np.all(self._m_posdiff[0] == 0) and np.all(self._m_posdiff[-1] == 0)
         posdiff = self._m_posdiff
         for i in range(1, len(self.q_desired) - 1):
-            d = np.sign(posdiff[i])
+            d = np.sign(posdiff[i]).astype(dtype=int)
             q_new = self._parabolic(self.m_height[i - 1:i + 2], self.m_pos[i - 1:i + 2], d)
             idx = (np.abs(posdiff[i]) >= 1) &  \
                   ((self.m_pos[i+1] - self.m_pos[i] > 1) | (self.m_pos[i-1] - self.m_pos[i] < -1))
+            # print(idx)
             idxparabolic = (self.m_height[i-1][idx] < q_new[idx]) & \
                            (q_new[idx] < self.m_height[i+1][idx])
-            self.m_height[i][idx][idxparabolic] = q_new[idx][idxparabolic]
-            # TODO: use linear interpolation elsewhere
-            # heights = (self.m_height[i], self.m_height[i+d[i]])
-            # positions = (self.m_pos[i], self.m_pos[i+d[i]])
-            # lininterp = self._linear(heights, positions, d[i])
-            # self.m_pos[i][idx][~idxparabolic] = lininterp[~idxparabolic]
+            if np.any(idxparabolic):
+                # print(q_new)
+                self.m_height[i][idx][idxparabolic] = q_new[idx][idxparabolic]
+            idxlinear = ~idxparabolic
+            if np.any(idxlinear):
+                shape = self.m_height[0].shape
+                heights = (self.m_height[i], self.m_height[i+d, np.indices(shape)])
+                positions = (self.m_pos[i], self.m_pos[i+d, np.indices(shape)])
+                lininterp = self._linear(heights, positions, d).ravel()
+                # print(q_new.shape)
+                # print(lininterp.shape)
+                self.m_height[i][idx][idxlinear] = lininterp[idx][idxlinear]
             self.m_pos[i][idx] += d[idx]
 
     @staticmethod
