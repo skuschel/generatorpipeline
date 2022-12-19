@@ -76,11 +76,24 @@ def bench_median(n):
     passtime = (t1 - t0) * 1e6 / n
     print('MedianEstimator ({:n}): {:.3f} us/observation'.format(n, passtime))
 
+def bench_cdf(n):
+    np.random.seed(42)
+    acc = gp.accumulators.CDFEstimator(50)
+
+    t0 = time.time()
+    for _ in range(n):
+        obs = np.random.random()
+        acc += obs
+    t1 =  time.time()
+    passtime = (t1 - t0) * 1e6 / n
+    print('MedianEstimator ({:n}): {:.3f} us/observation'.format(n, passtime))
+
 def main(n=int(500)):
     bench_covariance(n)
     bench_mean(n*10)
     bench_variance(n*2)
     bench_median(500)
+    bench_cdf(400)
 
 
 
