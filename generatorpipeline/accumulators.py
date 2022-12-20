@@ -1,4 +1,5 @@
-# Copyright (C) 2020-2021 Stephan Kuschel
+# Copyright (C) 2020-2022 Stephan Kuschel
+#               2022 Robert Radloff
 #
 # This file is part of generatorpipeline.
 #
@@ -310,9 +311,15 @@ class RunningCovariance(Covariance):
         self._cov.lifetime = x
 
 
-class QuantileEstimator(Accumulator):
+class CDFEstimator(Accumulator):
     '''
-    Calculate approximate quantiles.
+    Estimates the Cumulative Distribution Function (CDF).
+    Arguments:
+    ----------
+      * points - number of positions for CDF sampling
+        OR
+        list of sampling positions
+
     This implementation follows the P^2 algorithm
     proposed by Jain and Chlamtac in the paper
     https://doi.org/10.1145/4372.4378.
@@ -353,8 +360,17 @@ class QuantileEstimator(Accumulator):
     Robert Radloff 2022
     '''
 
-    def __init__(self, p):
-        self.p = p
+    def __init__(self, points):
+        if np.asanyarray(points).shape == ():
+            # linear spacing (equiprobable cells)
+            self.q_desired = np.linspace(0, 1, points)
+        else:
+            # just use the cells given
+            self.q_desired = np.array(points, dtype=float)
+            self.q_desired.sort()
+        self.q_desired.setflags(write=False)
+        if self.q_desired[0] != 0 or self.q_desired[-1] != 1:
+            raise ValueError('points must be 0 in first and 1 in the last element.')
         self._n = 0
         # Important note:
         # in this implementation n
@@ -363,15 +379,15 @@ class QuantileEstimator(Accumulator):
         # of _accumulate_obj.
         # Thus, during the call of
         # _accumulate_obj it acts as N-1 instead.
-        self.m_height = 5 * [None]  # marker heights
-        self.m_pos = list(range(1, 6))  # marker positions
+        self.m_height = len(self.q_desired) * [None]  # marker heights
+        self.m_pos = list(range(len(self.q_desired)))  # marker positions
 
     def _accumulate_obj(self, obj):
-        if self._n < 4:
+        if self._n < len(self.q_desired) - 1:
             self.m_height[self._n] = obj
             self._n += 1
             return
-        elif self._n == 4:
+        elif self._n == len(self.q_desired) - 1:
             self.m_height[self._n] = obj
             self.m_height = sorted(self.m_height)
         else:
@@ -385,7 +401,7 @@ class QuantileEstimator(Accumulator):
             for i, h in enumerate(self.m_height[1:], start=1):
                 if obj <= h:
                     self.m_pos[i] += 1
-            assert self.m_pos[0] == 1 and self.m_pos[-1] == self.n + 1
+            assert self.m_pos[0] == 0 and self.m_pos[-1] == self.n
         self._adjust_heights()
         assert all([self.m_height[i] <= self.m_height[i+1] for i in range(len(self.m_height) - 1)])
         self._n += 1
@@ -396,32 +412,22 @@ class QuantileEstimator(Accumulator):
         Calculate the difference between the marker positions
         `m_pos` and the desired marker positions `_m_desired`.
         '''
-        return [dp - p for dp, p in zip(self._m_desired, self.m_pos)]
+        return self._m_desired - self.m_pos
 
     @property
     def _m_desired(self):
-        if self.n < 4:
-            err = '''Desired positions can only be calculated
-            after minimum 5 observations have been collected!
-            Current number is {}'''.format(self.n)
-            raise ValueError(err)
-        ret = [1.,
-               self.n * 0.5 * self.p + 1,
-               self.n * self.p + 1,
-               self.n * 0.5 * (self.p + 1) + 1,
-               float(self.n + 1)]
-        return ret
+        return self.q_desired * self.n
 
     def _adjust_heights(self):
         '''
         This function implements step B3 from box 1 in the Jain and Chlamtac paper.
         '''
         assert self._m_posdiff[0] == 0 and self._m_posdiff[-1] == 0
-        for i in range(1, 4):
+        for i in range(1, len(self.q_desired) - 1):
             posdiff = self._m_posdiff
             if ((posdiff[i] >= 1) and (self.m_pos[i+1] - self.m_pos[i] > 1))\
                     or ((posdiff[i] <= -1) and (self.m_pos[i-1] - self.m_pos[i] < -1)):
-                d = self._sign(posdiff[i])
+                d = int(np.sign(posdiff[i]))
                 q_new = self._parabolic(self.m_height[i - 1:i + 2], self.m_pos[i-1:i+2], d)
                 if self.m_height[i-1] < q_new and q_new < self.m_height[i+1]:
                     self.m_height[i] = q_new  # set marker height to new value
@@ -467,33 +473,64 @@ class QuantileEstimator(Accumulator):
                                       * (q2 - q1) / (n2 - n1))
         return q_new
 
-    @staticmethod
-    def _sign(n):
-        '''
-        Simple sign function. Returns -1 if n < 0 and 1 if n > 0.
-        Not implemented for 0.
-        '''
-        t = type(n)
-        if t is not float:
-            raise ValueError('_sign is only implemented for floats.')
-        if n == 0:
-            raise ValueError('n should never be 0! Something went wrong.')
-        if n < 0:
-            return -1
-        else:
-            return 1
-
     @property
     def n(self):
         return self._n
 
     @property
+    def q_actual(self):
+        '''
+        The actual quantile marker positions.
+
+        similar to `self.q_desired` but accurately calculated.
+        '''
+        return np.asarray(self.m_pos, dtype=float) / (self.n - 1)
+
+    @property
+    def cdf(self):
+        '''
+        Cumulative Distribution Function
+        '''
+        return self.m_height, self.q_actual
+
+    @property
+    def pdf(self):
+        '''
+        Probability Density Function
+
+        This is simply the derivative of the CDF.
+        '''
+        x, y = self.cdf
+        pdf = x, np.gradient(y) / np.gradient(x)
+        return pdf
+
+    @property
+    def min(self):
+        return self.m_height[0]
+
+    @property
+    def max(self):
+        return self.m_height[-1]
+
+    @property
     def value(self):
-        return self.m_height[2]
+        return self.cdf
 
     @property
     def _debug_info(self):
         return self._n, self.m_pos, self.m_height
+
+
+class QuantileEstimator(CDFEstimator):
+
+    def __init__(self, p):
+        self.p = p
+        # desired quantile markers
+        super().__init__(np.asarray([0, 0.5 * p, p, 0.5 * (p + 1), 1], dtype=float))
+
+    @property
+    def value(self):
+        return self.m_height[2]
 
 
 class MedianEstimator(QuantileEstimator):
