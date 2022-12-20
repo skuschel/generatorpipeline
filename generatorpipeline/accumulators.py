@@ -367,7 +367,7 @@ class CDFEstimator(Accumulator):
         else:
             # just use the cells given
             self.q_desired = np.array(points, dtype=float)
-            np.sort(self.q_desired)
+            self.q_desired.sort()
         self.q_desired.setflags(write=False)
         if self.q_desired[0] != 0 or self.q_desired[-1] != 1:
             raise ValueError('points must be 0 in first and 1 in the last element.')
