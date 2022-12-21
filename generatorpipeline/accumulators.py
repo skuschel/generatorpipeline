@@ -360,7 +360,7 @@ class CDFEstimator(Accumulator):
     Robert Radloff 2022
     '''
 
-    def __init__(self, points):
+    def __init__(self, points,  shape=None):
         if np.asanyarray(points).shape == ():
             # linear spacing (equiprobable cells)
             self.q_desired = np.linspace(0, 1, points)
@@ -379,28 +379,54 @@ class CDFEstimator(Accumulator):
         # of _accumulate_obj.
         # Thus, during the call of
         # _accumulate_obj it acts as N-1 instead.
-        self.m_height = len(self.q_desired) * [None]  # marker heights
-        self.m_pos = list(range(len(self.q_desired)))  # marker positions
+
+        # if shape is not given the marker positions and heights
+        # will be set in a shape fitting the first observation.
+        # The values of the marker heights and positions are in the last
+        # dimension of the according array.
+        if shape is not None:
+            self._init_m_pos(shape)
+            self._init_m_height(shape)
+        else:
+            self.m_pos = None
+            self.m_height = None
+
+    def _init_m_pos(self, shape):
+        if self.m_pos is not None:
+            raise ValueError(f'`{self}.m_pos` was already initialized.')
+        self.m_pos = np.ones((*shape, len(self.q_desired)), dtype=float)  # marker positions
+        self.m_pos *= np.arange(len(self.q_desired), dtype=int)
+        # TODO: maybe there is  a more elegant way to do this
+
+    def _init_m_height(self, shape):
+        if self.m_height is not None:
+            raise ValueError(f'`{self}.m_height` was already initialized.')
+        self.m_height = np.empty((*shape, len(self.q_desired)), dtype=float)  # marker heights
 
     def _accumulate_obj(self, obj):
+        obj = np.asarray(obj)
+        if self.m_pos is None or self.m_height is None:
+            self._init_m_pos(obj.shape)
+            self._init_m_height(obj.shape)
+        # TODO write test to assure obj shape doesn't change
+        #  once `m_pos` and `m_height` is initialized.
         if self._n < len(self.q_desired) - 1:
-            self.m_height[self._n] = obj
+            self.m_height[..., self._n] = obj
             self._n += 1
             return
         elif self._n == len(self.q_desired) - 1:
-            self.m_height[self._n] = obj
-            self.m_height = sorted(self.m_height)
+            self.m_height[..., self._n] = obj
+            self.m_height = np.sort(self.m_height, axis=-1)
         else:
             # Check for new Min
-            if obj < self.m_height[0]:
-                self.m_height[0] = obj
+            cond_min = obj < self.m_height[..., 0]
+            self.m_height[..., 0] = np.where(cond_min, obj, self.m_height[..., 0])
             # Check for new Max
-            elif self.m_height[-1] < obj:
-                self.m_height[-1] = obj
+            cond_max = obj > self.m_height[..., -1]
+            self.m_height[..., -1] = np.where(cond_max, obj, self.m_height[..., -1])
             # Increment Marker positions
-            for i, h in enumerate(self.m_height[1:], start=1):
-                if obj <= h:
-                    self.m_pos[i] += 1
+            self.m_pos[..., 1:] += (obj[..., None] <= self.m_height[..., 1:])
+
             assert self.m_pos[0] == 0 and self.m_pos[-1] == self.n
         self._adjust_heights()
         assert all([self.m_height[i] <= self.m_height[i+1] for i in range(len(self.m_height) - 1)])
