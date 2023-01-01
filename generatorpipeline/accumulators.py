@@ -25,6 +25,7 @@ parts of the data.
 
 import abc
 import numpy as np
+from collections import deque
 
 
 class Accumulator(abc.ABC):
@@ -309,6 +310,40 @@ class RunningCovariance(Covariance):
     def lifetime(self, x):
         self.mean.lifetime = x
         self._cov.lifetime = x
+
+
+class CacheAccumulator(Accumulator):
+    '''
+    A cache that implements the Accumulator interface. The value it returns will be the
+    last `length` elements, which have been added.
+    No calculation is performed.
+
+    length=1 the number of previous elements to return.
+
+    acc.value[-1] is the last element
+    acc.value[-2] is the one before the last element
+    and so on.
+    '''
+
+    def __init__(self, length=1):
+        self._n = 0
+        self._cache = deque(maxlen=length)
+
+    def _accumulate_obj(self, obj):
+        self._n += 1
+        self._cache.append(obj)
+        # no need to remove any element, because `maxlen` is defined.
+
+    @property
+    def value(self):
+        '''
+        value[-1] is the last element.
+        '''
+        return list(self._cache)
+
+    @property
+    def n(self):
+        return self._n
 
 
 class CDFEstimator(Accumulator):
