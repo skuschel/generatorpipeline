@@ -493,6 +493,25 @@ class CDFEstimator(Accumulator):
         '''
         return self.m_height, self.q_actual
 
+    def cdf_interp(self, v):
+        '''
+        Interpolation of the CDF at value(s) `v`.
+        Returns the quantile(s) `q` at which you would `v` in the distribution.
+
+        Uses `np.interp` for the interpolation.
+        '''
+        return np.interp(v, *self.cdf)
+
+    def cdf_inverse_interp(self, q):
+        '''
+        Interpolation of the inverse CDF at value(s) `q`.
+        Returns the value(s) `v` which is at the `q`-quantile of the distribution.
+
+        Uses `np.interp` for the interpolation.
+        '''
+        vs, qs = self.cdf
+        return np.interp(q, qs, vs)
+
     @property
     def pdf(self):
         '''
