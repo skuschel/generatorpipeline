@@ -25,6 +25,9 @@ parts of the data.
 
 import abc
 import numpy as np
+from collections import deque
+import time
+import heapq
 
 
 class Accumulator(abc.ABC):
@@ -309,6 +312,55 @@ class RunningCovariance(Covariance):
     def lifetime(self, x):
         self.mean.lifetime = x
         self._cov.lifetime = x
+
+
+class CacheAccumulator(Accumulator):
+    '''
+    A cache that implements the Accumulator interface. The value it returns will be the
+    last `length` elements, which have been added.
+    No calculation is performed.
+
+    length=1 the number of previous elements to return.
+
+    acc.value[-1] is the last element
+    acc.value[-2] is the one before the last element
+    and so on.
+    '''
+
+    def __init__(self, length=1):
+        self._n = 0
+        self._cache = deque(maxlen=length)
+        self._timecache = deque(maxlen=length)
+
+    def _accumulate_obj(self, obj):
+        self._n += 1
+        self._cache.append(obj)
+        # no need to remove any element, because `maxlen` is defined.
+        self._timecache.append(time.time_ns())
+
+    def _accumulate_other(self, other):
+        self._n += other.n
+        cache = deque(maxlen=self._cache.maxlen)
+        ctimes = deque(maxlen=self._cache.maxlen)
+        it1 = zip(self._timecache, self._cache)
+        it2 = zip(other._timecache, other._cache)
+        m = heapq.merge(it1, it2, key=lambda x: x[0])
+        for t, el in m:
+            cache.append(el)
+            ctimes.append(t)
+        self._cache = cache
+        self._timecache = ctimes
+
+    @property
+    def value(self):
+        '''
+        value[-1] is the last element.
+        '''
+        return list(self._cache)
+
+    @property
+    def n(self):
+        return self._n
 
 
 class CDFEstimator(Accumulator):
