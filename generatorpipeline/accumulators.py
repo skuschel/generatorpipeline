@@ -69,6 +69,32 @@ class Accumulator(abc.ABC):
     __iadd__ = accumulate
 
 
+class Counter(Accumulator):
+    '''
+    Count the number of accumulated objects.
+    Objects can be None and will still be counted.
+    '''
+
+    def __init__(self, n=0):
+        if not n >= 0:
+            raise ValueError('n >=0 required, but n={} found.', format(n))
+        self._n = n
+
+    def _accumulate_obj(self, obj):
+        self._n += 1
+
+    def _accumulate_other(self, other):
+        self._n += other._n
+
+    @property
+    def value(self):
+        return self._n
+
+    @property
+    def n(self):
+        return self._n
+
+
 class _BinaryOpAccumulatorNumpy(Accumulator):
     '''
     Baseclass for Accumulation with a binary operation.
