@@ -669,7 +669,7 @@ class DynamicBinSorter(Accumulator):
         `CDFEstimator`.
         '''
         self.nbins = nbins
-        self.cdfestimator = gp.accumulators.CDFEstimator(nbins + 1)
+        self.cdfestimator = CDFEstimator(nbins + 1)
         self._binaccs = [binaccumulatorcls(**kwargs) for _ in range(self.nbins)]
         self.sortkey = key
         self.datakey = datakey
