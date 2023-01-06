@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2022 Stephan Kuschel
+# Copyright (C) 2020-2023 Stephan Kuschel
 #               2022 Robert Radloff
 #
 # This file is part of generatorpipeline.
@@ -614,7 +614,7 @@ class BinSorter(Accumulator):
 
         the number of bins `nbins` is `len(bin_edges) - 1`.
         '''
-        self.bin_edges = bin_edges
+        self._bin_edges = bin_edges
         # + 2 for min and max bin
         self._binaccs = [binaccumulatorcls(**kwargs) for _ in range(self.nbins + 2)]
         self.sortkey = key
@@ -624,6 +624,10 @@ class BinSorter(Accumulator):
     @property
     def nbins(self):
         return len(self.bin_edges) - 1
+
+    @property
+    def bin_edges(self):
+        return self._bin_edges
 
     def _accumulate_obj(self, obj):
         self._n += 1
@@ -660,7 +664,7 @@ class BinSorter(Accumulator):
         return self._n
 
 
-class DynamicBinSorter(Accumulator):
+class DynamicBinSorter(BinSorter):
 
     def __init__(self, nbins, binaccumulatorcls=Counter, /, kwargs={},
                  key=lambda x: x, datakey=lambda x: x):
@@ -668,12 +672,16 @@ class DynamicBinSorter(Accumulator):
         Same as the `BinSorter`, but the `bin_edges` are dynamically adjusted using the
         `CDFEstimator`.
         '''
-        self.nbins = nbins
+        self._nbins = nbins
         self.cdfestimator = CDFEstimator(nbins + 1)
-        self._binaccs = [binaccumulatorcls(**kwargs) for _ in range(self.nbins)]
+        self._binaccs = [binaccumulatorcls(**kwargs) for _ in range(nbins)]
         self.sortkey = key
         self.datakey = datakey
         self._n = 0
+
+    @property
+    def nbins(self):
+        return self._nbins
 
     @property
     def bin_edges(self):
@@ -708,18 +716,3 @@ class DynamicBinSorter(Accumulator):
         `bin_edges` always has one element more than `histogram`.
         '''
         return self.bin_edges, [x.n for x in self._binaccs]
-
-    @property
-    def histogram_density(self):
-        '''
-        The Density in the histogram.
-        This is what you are looking for when the bins are not equally spaced.
-
-        The Integral of this function is the total number of observations.
-        '''
-        e, h = self.histogram
-        return e, h / np.diff(e)
-
-    @property
-    def n(self):
-        return self._n
