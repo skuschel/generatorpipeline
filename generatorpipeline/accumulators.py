@@ -645,6 +645,17 @@ class BinSorter(Accumulator):
         return self.bin_edges, [x.n for x in self._binaccs[1:-1]]
 
     @property
+    def histogram_density(self):
+        '''
+        The Density in the histogram.
+        This is what you are looking for when the bins are not equally spaced.
+
+        The Integral of this function is the total number of observations.
+        '''
+        e, h = self.histogram
+        return e, h / np.diff(e)
+
+    @property
     def n(self):
         return self._n
 
@@ -697,6 +708,17 @@ class DynamicBinSorter(Accumulator):
         `bin_edges` always has one element more than `histogram`.
         '''
         return self.bin_edges, [x.n for x in self._binaccs]
+
+    @property
+    def histogram_density(self):
+        '''
+        The Density in the histogram.
+        This is what you are looking for when the bins are not equally spaced.
+
+        The Integral of this function is the total number of observations.
+        '''
+        e, h = self.histogram
+        return e, h / np.diff(e)
 
     @property
     def n(self):
