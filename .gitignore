@@ -77,3 +77,6 @@ target/
 
 # if using Pycharm for development
 .idea/
+
+# if developing on macos
+.DS_Store
