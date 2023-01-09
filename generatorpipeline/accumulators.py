@@ -452,7 +452,8 @@ class CDFEstimator(Accumulator):
     def _init_m_height(self, shape):
         if self.m_height is not None:
             raise ValueError(f'`{self}.m_height` was already initialized.')
-        self.m_height = np.ones((*shape, len(self.q_desired)), dtype=float) * np.nan  # marker heights
+        # marker heights
+        self.m_height = np.ones((*shape, len(self.q_desired)), dtype=float) * np.nan
 
     def _accumulate_obj(self, obj):
         obj = np.asarray(obj)
@@ -478,9 +479,10 @@ class CDFEstimator(Accumulator):
             # Increment Marker positions
             self.m_pos[..., 1:] += (obj[..., None] <= self.m_height[..., 1:])
 
-            #assert self.m_pos[0] == 0 and self.m_pos[-1] == self.n
+            # assert self.m_pos[0] == 0 and self.m_pos[-1] == self.n
         self._adjust_heights()
-        #assert np.all(self.m_height[..., :-1] <= self.m_height[..., 1:]), f'Problem: Heights unsorted at {self.n}'
+        # assert np.all(self.m_height[..., :-1] <= self.m_height[..., 1:]),
+        # f'Problem: Heights unsorted at {self.n}'
         self._n += 1
 
     def _m_posdiff(self, i):
@@ -507,7 +509,8 @@ class CDFEstimator(Accumulator):
         def parabolic_possible(h_new):
             # could potentially be replaced
             # by a check if heights are still strictly increasing
-            return np.logical_and(self.m_height[..., [i-1]] < h_new, h_new < self.m_height[..., [i+1]])
+            return np.logical_and(self.m_height[..., [i-1]] < h_new,
+                                  h_new < self.m_height[..., [i+1]])
 
         # assert np.all(self._m_posdiff[..., 0]) == 0 and np.all(self._m_posdiff[..., -1] == 0)
         for i in range(1, len(self.q_desired) - 1):
@@ -524,10 +527,12 @@ class CDFEstimator(Accumulator):
             pos = self.m_pos[..., [i]] + direction
             # Apply height changes where needed.
             self.m_height[..., [i]] = np.where(adjust_possible(posdiff, positions),
-                                             np.where(parabolic_possible(par), par, lin),
-                                             self.m_height[..., [i]])
+                                               np.where(parabolic_possible(par), par, lin),
+                                               self.m_height[..., [i]])
             # Don't forget to adjust marker positions where necessary
-            self.m_pos[..., [i]] = np.where(adjust_possible(posdiff, positions), pos, self.m_pos[..., [i]])
+            self.m_pos[..., [i]] = np.where(adjust_possible(posdiff, positions),
+                                            pos,
+                                            self.m_pos[..., [i]])
 
     @staticmethod
     def _linear(q, n, d):
@@ -556,9 +561,9 @@ class CDFEstimator(Accumulator):
         q1, q2, q3 = heights
         n1, n2, n3 = positions
         q_new = q2 + d / (n3 - n1) * ((n2 - n1 + d)
-                                                 * (q3 - q2) / (n3 - n2)
-                                                 + (n3 - n2 - d)
-                                                 * (q2 - q1) / (n2 - n1))
+                                      * (q3 - q2) / (n3 - n2)
+                                      + (n3 - n2 - d)
+                                      * (q2 - q1) / (n2 - n1))
         return q_new
 
     @property
