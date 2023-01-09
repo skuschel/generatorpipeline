@@ -395,13 +395,12 @@ class CDFEstimator(Accumulator):
         if self.m_pos is not None:
             raise ValueError(f'`{self}.m_pos` was already initialized.')
         self.m_pos = np.ones((*shape, len(self.q_desired)), dtype=float)  # marker positions
-        self.m_pos *= np.arange(len(self.q_desired), dtype=int)
-        # TODO: maybe there is  a more elegant way to do this
+        self.m_pos *= np.arange(len(self.q_desired), dtype=float)
 
     def _init_m_height(self, shape):
         if self.m_height is not None:
             raise ValueError(f'`{self}.m_height` was already initialized.')
-        self.m_height = np.empty((*shape, len(self.q_desired)), dtype=float)  # marker heights
+        self.m_height = np.ones((*shape, len(self.q_desired)), dtype=float) * np.nan  # marker heights
 
     def _accumulate_obj(self, obj):
         obj = np.asarray(obj)
@@ -429,7 +428,7 @@ class CDFEstimator(Accumulator):
 
             assert self.m_pos[0] == 0 and self.m_pos[-1] == self.n
         self._adjust_heights()
-        assert all([self.m_height[i] <= self.m_height[i+1] for i in range(len(self.m_height) - 1)])
+        assert np.all(self.m_height[..., :-1] <= self.m_height[..., 1:]), f'Problem: Heights unsorted at {self.n}'
         self._n += 1
 
     @property
@@ -448,56 +447,65 @@ class CDFEstimator(Accumulator):
         '''
         This function implements step B3 from box 1 in the Jain and Chlamtac paper.
         '''
-        assert self._m_posdiff[0] == 0 and self._m_posdiff[-1] == 0
+        assert np.all(self._m_posdiff[..., 0]) == 0 and np.all(self._m_posdiff[..., -1] == 0)
         for i in range(1, len(self.q_desired) - 1):
             posdiff = self._m_posdiff
             if ((posdiff[i] >= 1) and (self.m_pos[i+1] - self.m_pos[i] > 1))\
                     or ((posdiff[i] <= -1) and (self.m_pos[i-1] - self.m_pos[i] < -1)):
-                d = int(np.sign(posdiff[i]))
-                q_new = self._parabolic(self.m_height[i - 1:i + 2], self.m_pos[i-1:i+2], d)
-                if self.m_height[i-1] < q_new and q_new < self.m_height[i+1]:
-                    self.m_height[i] = q_new  # set marker height to new value
+                d = np.sign(posdiff[..., i])
+                # h2 is the height that will be adjusted (self.m_height[...,i])
+                heights = np.split(self.m_height[..., i - 1:i + 2], 3, axis=-1)
+                positions = np.split(self.m_pos[..., i-1:i+2], 3, axis=-1)
+                h_new = self._parabolic(heights, positions, d)
+                if self.m_height[i-1] < h_new and h_new < self.m_height[i+1]:
+                    # assures that heights are in ascending order after the adjustment
+                    # TODO: this most likely needs a different solution, as does the other if condition
+                    # as not all values of the array wil satisfy the condition
+                    # thinking about it it would maybe be best, to calculate bot the parabolic and the
+                    # linear interpolation and then choose the according value, either by nested np.where
+                    # expressions or (probably better) np.select
+                    # so basically: compute posdiff, compute step direction (what happens if its 0?)
+                    # compute parabolic interpolation, compute linear interpolation
+                    # select original value if interpol was not necessary, select linear if parabolic is not
+                    # possible, else select parabolic.
+                    self.m_height[..., i] = h_new  # set marker height to new value
                 else:
-                    heights = (self.m_height[i], self.m_height[i+d])
-                    positions = (self.m_pos[i], self.m_pos[i+d])
-                    self.m_height[i] = self._linear(heights, positions, d)
-                self.m_pos[i] += d
+                    heights = (self.m_height[..., i], np.where(d < 0, self.m_height[..., i-1], self.m_height[..., i+1]))
+                    positions = (self.m_pos[..., i], np.where(d < 0, self.m_pos[..., i-1], self.m_pos[..., i+1]))
+                    self.m_height[..., i] = self._linear(heights, positions, d)
+                self.m_pos[..., i] += d
 
     @staticmethod
     def _linear(q, n, d):
         '''
         Calculate the new marker height by using linear interpolation.
         '''
-        if len(q) != 2:
-            raise ValueError('q does not contain 2 elements!')
-        if len(n) != 2:
-            raise ValueError('n does not contain 2 elements!')
+        # if len(q) != 2:
+        #     raise ValueError('q does not contain 2 elements!')
+        # if len(n) != 2:
+        #     raise ValueError('n does not contain 2 elements!')
         q_i, q_d = q
         n_i, n_d = n
-        q_new = q_i + d*((q_d - q_i) / (n_d - n_i))
+        q_new = q_i + d[..., None]*((q_d - q_i) / (n_d - n_i))
         return q_new
 
     @staticmethod
-    def _parabolic(q, n, d):
+    def _parabolic(heights, positions, d):
         '''
         Calculate marker height at the new position
         using the piecewise parabolic formula described in
         https://doi.org/10.1145/4372.4378.
         '''
-        if len(q) != 3:
-            raise ValueError('q does not contain 3 elements!')
-        if len(n) != 3:
-            raise ValueError('n does not contain 3 elements!')
-
-        if not all([n[i] <= n[i+1] for i in range(len(n)-1)]):
-            raise ValueError('n must be sorted!')
-        q1, q2, q3 = q
-        n1, n2, n3 = n
-        q_new = q2 + d / (n3 - n1) * ((n2 - n1 + d)
-                                      * (q3 - q2) / (n3 - n2)
-                                      + (n3 - n2 - d)
-                                      * (q2 - q1) / (n2 - n1))
-        return q_new
+        # TODO: im not quite happy with this implementation.
+        #  Also add error handling again
+        d = np.asarray(d)
+        q1, q2, q3 = heights
+        n1, n2, n3 = positions
+        q_new = q2 + d[..., None] / (n3 - n1) * ((n2 - n1 + d[..., None])
+                                                 * (q3 - q2) / (n3 - n2)
+                                                 + (n3 - n2 - d[..., None])
+                                                 * (q2 - q1) / (n2 - n1))
+        return q_new.squeeze()
 
     @property
     def n(self):
