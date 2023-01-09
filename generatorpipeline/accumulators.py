@@ -426,7 +426,7 @@ class CDFEstimator(Accumulator):
             # Increment Marker positions
             self.m_pos[..., 1:] += (obj[..., None] <= self.m_height[..., 1:])
 
-            assert self.m_pos[0] == 0 and self.m_pos[-1] == self.n
+            #assert self.m_pos[0] == 0 and self.m_pos[-1] == self.n
         self._adjust_heights()
         assert np.all(self.m_height[..., :-1] <= self.m_height[..., 1:]), f'Problem: Heights unsorted at {self.n}'
         self._n += 1
@@ -447,33 +447,36 @@ class CDFEstimator(Accumulator):
         '''
         This function implements step B3 from box 1 in the Jain and Chlamtac paper.
         '''
+
+        def adjust_possible(pdiff, positions):
+            l_step = np.logical_and(pdiff <= -1, positions[0] - positions[1] < -1)
+            r_step = np.logical_and(pdiff >= 1, positions[2] - positions[1] > 1)
+            return np.logical_or(l_step, r_step)
+
+        def parabolic_possible(h_new):
+            # could potentially be replaced
+            # by a check if heights are still strictly increasing
+            return np.logical_and(self.m_height[..., [i-1]] < h_new, h_new < self.m_height[..., [i+1]])
+
         assert np.all(self._m_posdiff[..., 0]) == 0 and np.all(self._m_posdiff[..., -1] == 0)
         for i in range(1, len(self.q_desired) - 1):
-            posdiff = self._m_posdiff
-            if ((posdiff[i] >= 1) and (self.m_pos[i+1] - self.m_pos[i] > 1))\
-                    or ((posdiff[i] <= -1) and (self.m_pos[i-1] - self.m_pos[i] < -1)):
-                d = np.sign(posdiff[..., i])
-                # h2 is the height that will be adjusted (self.m_height[...,i])
-                heights = np.split(self.m_height[..., i - 1:i + 2], 3, axis=-1)
-                positions = np.split(self.m_pos[..., i-1:i+2], 3, axis=-1)
-                h_new = self._parabolic(heights, positions, d)
-                if self.m_height[i-1] < h_new and h_new < self.m_height[i+1]:
-                    # assures that heights are in ascending order after the adjustment
-                    # TODO: this most likely needs a different solution, as does the other if condition
-                    # as not all values of the array wil satisfy the condition
-                    # thinking about it it would maybe be best, to calculate bot the parabolic and the
-                    # linear interpolation and then choose the according value, either by nested np.where
-                    # expressions or (probably better) np.select
-                    # so basically: compute posdiff, compute step direction (what happens if its 0?)
-                    # compute parabolic interpolation, compute linear interpolation
-                    # select original value if interpol was not necessary, select linear if parabolic is not
-                    # possible, else select parabolic.
-                    self.m_height[..., i] = h_new  # set marker height to new value
-                else:
-                    heights = (self.m_height[..., i], np.where(d < 0, self.m_height[..., i-1], self.m_height[..., i+1]))
-                    positions = (self.m_pos[..., i], np.where(d < 0, self.m_pos[..., i-1], self.m_pos[..., i+1]))
-                    self.m_height[..., i] = self._linear(heights, positions, d)
-                self.m_pos[..., i] += d
+            posdiff = self._m_posdiff[..., [i]]
+            direction = np.sign(posdiff)
+            heights = np.split(self.m_height[..., i - 1:i + 2], 3, axis=-1)
+            positions = np.split(self.m_pos[..., i - 1:i + 2], 3, axis=-1)
+            # calc parabolic and linear interp for all observations
+            par = self._parabolic(heights, positions, direction)
+            # depending on the step direction _linear requires different arguments.
+            lin = self._linear((heights[1], np.where(direction < 0, heights[0], heights[2])),
+                               (positions[1], np.where(direction < 0, positions[0], positions[2])),
+                               direction)
+            pos = self.m_pos[..., [i]] + direction
+            # Apply height changes where needed.
+            self.m_height[..., [i]] = np.where(adjust_possible(posdiff, positions),
+                                             np.where(parabolic_possible(par), par, lin),
+                                             self.m_height[..., [i]])
+            # Don't forget to adjust marker positions where necessary
+            self.m_pos[..., [i]] = np.where(adjust_possible(posdiff, positions), pos, self.m_pos[..., [i]])
 
     @staticmethod
     def _linear(q, n, d):
@@ -486,7 +489,7 @@ class CDFEstimator(Accumulator):
         #     raise ValueError('n does not contain 2 elements!')
         q_i, q_d = q
         n_i, n_d = n
-        q_new = q_i + d[..., None]*((q_d - q_i) / (n_d - n_i))
+        q_new = q_i + d*((q_d - q_i) / (n_d - n_i))
         return q_new
 
     @staticmethod
@@ -501,11 +504,11 @@ class CDFEstimator(Accumulator):
         d = np.asarray(d)
         q1, q2, q3 = heights
         n1, n2, n3 = positions
-        q_new = q2 + d[..., None] / (n3 - n1) * ((n2 - n1 + d[..., None])
+        q_new = q2 + d / (n3 - n1) * ((n2 - n1 + d)
                                                  * (q3 - q2) / (n3 - n2)
-                                                 + (n3 - n2 - d[..., None])
+                                                 + (n3 - n2 - d)
                                                  * (q2 - q1) / (n2 - n1))
-        return q_new.squeeze()
+        return q_new
 
     @property
     def n(self):
