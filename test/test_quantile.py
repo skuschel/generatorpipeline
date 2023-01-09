@@ -3,6 +3,7 @@
 # Robert Radloff 2022
 
 import unittest
+import numpy as np
 import generatorpipeline as gp
 
 sample_values = [0.02, 0.15, 0.74, 3.39, 0.83, 22.37, 10.15, 15.43, 38.62, 15.92, 34.6, 10.28, 1.47, 0.4, 0.05, 11.39,
@@ -34,10 +35,10 @@ sample_m_pos = [[0, 1, 2, 3, 4],
                 [0, 5, 9, 15, 19],
                 [0, 5, 10, 15, 20]]
 
-sample_m_height = [[0.02, None, None, None, None],
-                    [0.02, 0.15, None, None, None],
-                    [0.02, 0.15, 0.74, None, None],
-                    [0.02, 0.15, 0.74, 3.39, None],
+sample_m_height = [[0.02, np.nan, np.nan, np.nan, np.nan],
+                    [0.02, 0.15, np.nan, np.nan, np.nan],
+                    [0.02, 0.15, 0.74, np.nan, np.nan],
+                    [0.02, 0.15, 0.74, 3.39, np.nan],
                     [0.02, 0.15, 0.74, 0.83, 3.39],
                     [0.02, 0.15, 0.74, 0.83, 22.37],
                     [0.02, 0.15, 0.74, 4.465, 22.37],
@@ -63,9 +64,9 @@ class TestQuantile(unittest.TestCase):
         for v, p, h in zip(sample_values, sample_m_pos, sample_m_height):
             quant.accumulate(v)
             n, pos, height = quant._debug_info
+            pos, height = list(pos), list(height)
             self.assertEqual(p, pos, f'Position test failed after value {n}: {v}.')
-            for a, b in zip(h, height):
-                self.assertAlmostEqual(a, b, 10, f'Height test failed after value {n}: {v}.')
+            self.assertTrue(np.allclose(h, height, equal_nan=True), f'Height test failed after value {n}: {v}.')
 
     def test_1d_median(self):
         median = gp.accumulators.MedianEstimator()
