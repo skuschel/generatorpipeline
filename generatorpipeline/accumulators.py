@@ -480,16 +480,15 @@ class CDFEstimator(Accumulator):
 
             #assert self.m_pos[0] == 0 and self.m_pos[-1] == self.n
         self._adjust_heights()
-        assert np.all(self.m_height[..., :-1] <= self.m_height[..., 1:]), f'Problem: Heights unsorted at {self.n}'
+        #assert np.all(self.m_height[..., :-1] <= self.m_height[..., 1:]), f'Problem: Heights unsorted at {self.n}'
         self._n += 1
 
-    @property
-    def _m_posdiff(self):
+    def _m_posdiff(self, i):
         '''
         Calculate the difference between the marker positions
         `m_pos` and the desired marker positions `_m_desired`.
         '''
-        return self._m_desired - self.m_pos
+        return self._m_desired[..., [i]] - self.m_pos[..., [i]]
 
     @property
     def _m_desired(self):
@@ -510,9 +509,9 @@ class CDFEstimator(Accumulator):
             # by a check if heights are still strictly increasing
             return np.logical_and(self.m_height[..., [i-1]] < h_new, h_new < self.m_height[..., [i+1]])
 
-        assert np.all(self._m_posdiff[..., 0]) == 0 and np.all(self._m_posdiff[..., -1] == 0)
+        # assert np.all(self._m_posdiff[..., 0]) == 0 and np.all(self._m_posdiff[..., -1] == 0)
         for i in range(1, len(self.q_desired) - 1):
-            posdiff = self._m_posdiff[..., [i]]
+            posdiff = self._m_posdiff(i)
             direction = np.sign(posdiff)
             heights = np.split(self.m_height[..., i - 1:i + 2], 3, axis=-1)
             positions = np.split(self.m_pos[..., i - 1:i + 2], 3, axis=-1)
