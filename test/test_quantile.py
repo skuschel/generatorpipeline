@@ -226,6 +226,10 @@ class TestMedian(unittest.TestCase):
         median = gp.accumulators.MedianEstimator()
         self.checkaccvalues(median, sample5, sample5_medians)
 
+    def test_2d_median_sample234(self):
+        median = gp.accumulators.MedianEstimator()
+        self.checkaccvalues(median, zip(sample2, sample3, sample4), zip(sample2_medians, sample3_medians, sample4_medians))
+
 
 if __name__ == '__main__':
     unittest.main()
