@@ -412,7 +412,7 @@ class CDFEstimator(Accumulator):
     Robert Radloff 2022
     '''
 
-    def __init__(self, points,  shape=None):
+    def __init__(self, points):
         if np.asanyarray(points).shape == ():
             # linear spacing (equiprobable cells)
             self.q_desired = np.linspace(0, 1, points)
@@ -436,12 +436,8 @@ class CDFEstimator(Accumulator):
         # will be set in a shape fitting the first observation.
         # The values of the marker heights and positions are in the last
         # dimension of the according array.
-        if shape is not None:
-            self._init_m_pos(shape)
-            self._init_m_height(shape)
-        else:
-            self.m_pos = None
-            self.m_height = None
+        self.m_pos = None
+        self.m_height = None
 
     def _init_m_pos(self, shape):
         if self.m_pos is not None:
@@ -490,7 +486,7 @@ class CDFEstimator(Accumulator):
         Calculate the difference between the marker positions
         `m_pos` and the desired marker positions `_m_desired`.
         '''
-        return self._m_desired[..., [i]] - self.m_pos[..., [i]]
+        return self._m_desired[..., i, None] - self.m_pos[..., i, None]
 
     @property
     def _m_desired(self):
@@ -509,8 +505,8 @@ class CDFEstimator(Accumulator):
         def parabolic_possible(h_new):
             # could potentially be replaced
             # by a check if heights are still strictly increasing
-            return np.logical_and(self.m_height[..., [i-1]] < h_new,
-                                  h_new < self.m_height[..., [i+1]])
+            return np.logical_and(self.m_height[..., i-1, None] < h_new,
+                                  h_new < self.m_height[..., i+1, None])
 
         # assert np.all(self._m_posdiff[..., 0]) == 0 and np.all(self._m_posdiff[..., -1] == 0)
         for i in range(1, len(self.q_desired) - 1):
@@ -524,15 +520,15 @@ class CDFEstimator(Accumulator):
             lin = self._linear((heights[1], np.where(direction < 0, heights[0], heights[2])),
                                (positions[1], np.where(direction < 0, positions[0], positions[2])),
                                direction)
-            pos = self.m_pos[..., [i]] + direction
+            pos = self.m_pos[..., i, None] + direction
             # Apply height changes where needed.
-            self.m_height[..., [i]] = np.where(adjust_possible(posdiff, positions),
-                                               np.where(parabolic_possible(par), par, lin),
-                                               self.m_height[..., [i]])
+            self.m_height[..., i, None] = np.where(adjust_possible(posdiff, positions),
+                                                   np.where(parabolic_possible(par), par, lin),
+                                                   self.m_height[..., i, None])
             # Don't forget to adjust marker positions where necessary
-            self.m_pos[..., [i]] = np.where(adjust_possible(posdiff, positions),
-                                            pos,
-                                            self.m_pos[..., [i]])
+            self.m_pos[..., i, None] = np.where(adjust_possible(posdiff, positions),
+                                                pos,
+                                                self.m_pos[..., i, None])
 
     @staticmethod
     def _linear(q, n, d):
@@ -623,7 +619,7 @@ class QuantileEstimator(CDFEstimator):
 
     @property
     def value(self):
-        return self.m_height[2]
+        return self.m_height[..., 2]
 
 
 class MedianEstimator(QuantileEstimator):
