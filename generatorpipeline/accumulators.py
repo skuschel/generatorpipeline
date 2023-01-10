@@ -415,7 +415,7 @@ class CDFEstimator(Accumulator):
     def __init__(self, points):
         if np.asanyarray(points).shape == ():
             # linear spacing (equiprobable cells)
-            self.q_desired = np.linspace(0, 1, points)
+            self.q_desired = np.asarray(np.linspace(0, 1, points))
         else:
             # just use the cells given
             self.q_desired = np.array(points, dtype=float)
@@ -442,14 +442,16 @@ class CDFEstimator(Accumulator):
     def _init_m_pos(self, shape):
         if self.m_pos is not None:
             raise ValueError(f'`{self}.m_pos` was already initialized.')
-        self.m_pos = np.ones((*shape, len(self.q_desired)), dtype=float)  # marker positions
-        self.m_pos *= np.arange(len(self.q_desired), dtype=float)
+        self.m_pos = np.ones((len(self.q_desired), *shape), dtype=float)  # marker positions
+        a = np.arange(len(self.q_desired), dtype=float)
+        a.shape = (len(self.q_desired), *[1 for _ in range(len(shape))])
+        self.m_pos *= a
 
     def _init_m_height(self, shape):
         if self.m_height is not None:
             raise ValueError(f'`{self}.m_height` was already initialized.')
         # marker heights
-        self.m_height = np.ones((*shape, len(self.q_desired)), dtype=float) * np.nan
+        self.m_height = np.ones((len(self.q_desired), *shape), dtype=float) * np.nan
 
     def _accumulate_obj(self, obj):
         obj = np.asarray(obj)
@@ -459,25 +461,25 @@ class CDFEstimator(Accumulator):
         # TODO write test to assure obj shape doesn't change
         #  once `m_pos` and `m_height` is initialized.
         if self._n < len(self.q_desired) - 1:
-            self.m_height[..., self._n] = obj
+            self.m_height[self._n] = obj
             self._n += 1
             return
         elif self._n == len(self.q_desired) - 1:
-            self.m_height[..., self._n] = obj
-            self.m_height = np.sort(self.m_height, axis=-1)
+            self.m_height[self._n] = obj
+            self.m_height = np.sort(self.m_height, axis=0)
         else:
             # Check for new Min
-            cond_min = obj < self.m_height[..., 0]
-            self.m_height[..., 0] = np.where(cond_min, obj, self.m_height[..., 0])
+            cond_min = obj < self.m_height[0]
+            self.m_height[0] = np.where(cond_min, obj, self.m_height[0])
             # Check for new Max
-            cond_max = obj > self.m_height[..., -1]
-            self.m_height[..., -1] = np.where(cond_max, obj, self.m_height[..., -1])
+            cond_max = obj > self.m_height[-1]
+            self.m_height[-1] = np.where(cond_max, obj, self.m_height[-1])
             # Increment Marker positions
-            self.m_pos[..., 1:] += (obj[..., None] <= self.m_height[..., 1:])
+            self.m_pos[1:] += (obj <= self.m_height[1:])
 
             # assert self.m_pos[0] == 0 and self.m_pos[-1] == self.n
         self._adjust_heights()
-        # assert np.all(self.m_height[..., :-1] <= self.m_height[..., 1:]),
+        # assert np.all(self.m_height[:-1] <= self.m_height[1:]),
         # f'Problem: Heights unsorted at {self.n}'
         self._n += 1
 
@@ -486,7 +488,7 @@ class CDFEstimator(Accumulator):
         Calculate the difference between the marker positions
         `m_pos` and the desired marker positions `_m_desired`.
         '''
-        return self._m_desired[..., i, None] - self.m_pos[..., i, None]
+        return self._m_desired[i] - self.m_pos[i]
 
     @property
     def _m_desired(self):
@@ -505,35 +507,35 @@ class CDFEstimator(Accumulator):
         def parabolic_possible(h_new):
             # could potentially be replaced
             # by a check if heights are still strictly increasing
-            return np.logical_and(self.m_height[..., i-1, None] < h_new,
-                                  h_new < self.m_height[..., i+1, None])
+            return np.logical_and(self.m_height[i-1] < h_new,
+                                  h_new < self.m_height[i+1])
 
         # assert np.all(self._m_posdiff[..., 0]) == 0 and np.all(self._m_posdiff[..., -1] == 0)
         for i in range(1, len(self.q_desired) - 1):
             posdiff = self._m_posdiff(i)
             direction = np.sign(posdiff)
-            heights = (self.m_height[..., i-1, None],
-                       self.m_height[..., i, None],
-                       self.m_height[..., i+1, None])
-            positions = (self.m_pos[..., i-1, None],
-                       self.m_pos[..., i, None],
-                       self.m_pos[..., i+1, None])
+            heights = (self.m_height[i-1],
+                       self.m_height[i],
+                       self.m_height[i+1])
+            positions = (self.m_pos[i-1],
+                         self.m_pos[i],
+                         self.m_pos[i+1])
             # calc parabolic and linear interp for all observations
             par = self._parabolic(heights, positions, direction)
             # depending on the step direction _linear requires different arguments.
             lin = self._linear((heights[1], np.where(direction < 0, heights[0], heights[2])),
                                (positions[1], np.where(direction < 0, positions[0], positions[2])),
                                direction)
-            pos = self.m_pos[..., i, None] + direction
+            pos = self.m_pos[i] + direction
             # Apply height changes where needed.
             adj = adjust_possible(posdiff, positions)
-            self.m_height[..., i, None] = np.where(adj,
-                                                   np.where(parabolic_possible(par), par, lin),
-                                                   self.m_height[..., i, None])
+            self.m_height[i] = np.where(adj,
+                                        np.where(parabolic_possible(par), par, lin),
+                                        self.m_height[i])
             # Don't forget to adjust marker positions where necessary
-            self.m_pos[..., i, None] = np.where(adj,
-                                                pos,
-                                                self.m_pos[..., i, None])
+            self.m_pos[i] = np.where(adj,
+                                     pos,
+                                     self.m_pos[i])
 
     @staticmethod
     def _linear(q, n, d):
@@ -623,7 +625,7 @@ class QuantileEstimator(CDFEstimator):
 
     @property
     def value(self):
-        return self.m_height[..., 2]
+        return self.m_height[2]
 
 
 class MedianEstimator(QuantileEstimator):
