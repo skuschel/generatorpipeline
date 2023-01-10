@@ -512,8 +512,12 @@ class CDFEstimator(Accumulator):
         for i in range(1, len(self.q_desired) - 1):
             posdiff = self._m_posdiff(i)
             direction = np.sign(posdiff)
-            heights = np.split(self.m_height[..., i - 1:i + 2], 3, axis=-1)
-            positions = np.split(self.m_pos[..., i - 1:i + 2], 3, axis=-1)
+            heights = (self.m_height[..., i-1, None],
+                       self.m_height[..., i, None],
+                       self.m_height[..., i+1, None])
+            positions = (self.m_pos[..., i-1, None],
+                       self.m_pos[..., i, None],
+                       self.m_pos[..., i+1, None])
             # calc parabolic and linear interp for all observations
             par = self._parabolic(heights, positions, direction)
             # depending on the step direction _linear requires different arguments.
@@ -522,11 +526,12 @@ class CDFEstimator(Accumulator):
                                direction)
             pos = self.m_pos[..., i, None] + direction
             # Apply height changes where needed.
-            self.m_height[..., i, None] = np.where(adjust_possible(posdiff, positions),
+            adj = adjust_possible(posdiff, positions)
+            self.m_height[..., i, None] = np.where(adj,
                                                    np.where(parabolic_possible(par), par, lin),
                                                    self.m_height[..., i, None])
             # Don't forget to adjust marker positions where necessary
-            self.m_pos[..., i, None] = np.where(adjust_possible(posdiff, positions),
+            self.m_pos[..., i, None] = np.where(adj,
                                                 pos,
                                                 self.m_pos[..., i, None])
 
@@ -553,7 +558,6 @@ class CDFEstimator(Accumulator):
         '''
         # TODO: im not quite happy with this implementation.
         #  Also add error handling again
-        d = np.asarray(d)
         q1, q2, q3 = heights
         n1, n2, n3 = positions
         q_new = q2 + d / (n3 - n1) * ((n2 - n1 + d)
