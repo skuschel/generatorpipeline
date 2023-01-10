@@ -504,11 +504,10 @@ class CDFEstimator(Accumulator):
             r_step = np.logical_and(pdiff >= 1, positions[2] - positions[1] > 1)
             return np.logical_or(l_step, r_step)
 
-        def parabolic_possible(h_new):
+        def parabolic_possible(h_new, heights):  # p for previous, n for next
             # could potentially be replaced
             # by a check if heights are still strictly increasing
-            return np.logical_and(self.m_height[i-1] < h_new,
-                                  h_new < self.m_height[i+1])
+            return np.logical_and(heights[0] < h_new, h_new < heights[2])
 
         # assert np.all(self._m_posdiff[..., 0]) == 0 and np.all(self._m_posdiff[..., -1] == 0)
         for i in range(1, len(self.q_desired) - 1):
@@ -530,7 +529,7 @@ class CDFEstimator(Accumulator):
             # Apply height changes where needed.
             adj = adjust_possible(posdiff, positions)
             self.m_height[i] = np.where(adj,
-                                        np.where(parabolic_possible(par), par, lin),
+                                        np.where(parabolic_possible(par, heights), par, lin),
                                         self.m_height[i])
             # Don't forget to adjust marker positions where necessary
             self.m_pos[i] = np.where(adj,
