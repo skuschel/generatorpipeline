@@ -415,7 +415,7 @@ class CDFEstimator(Accumulator):
     def __init__(self, points):
         if np.asanyarray(points).shape == ():
             # linear spacing (equiprobable cells)
-            self.q_desired = np.linspace(0, 1, points)
+            self.q_desired = np.asarray(np.linspace(0, 1, points))
         else:
             # just use the cells given
             self.q_desired = np.array(points, dtype=float)
@@ -431,40 +431,64 @@ class CDFEstimator(Accumulator):
         # of _accumulate_obj.
         # Thus, during the call of
         # _accumulate_obj it acts as N-1 instead.
-        self.m_height = len(self.q_desired) * [None]  # marker heights
-        self.m_pos = list(range(len(self.q_desired)))  # marker positions
+
+        # if shape is not given the marker positions and heights
+        # will be set in a shape fitting the first observation.
+        # The values of the marker heights and positions are in the last
+        # dimension of the according array.
+        self.m_pos = None
+        self.m_height = None
+
+    def _init_m_pos(self, shape):
+        if self.m_pos is not None:
+            raise ValueError(f'`{self}.m_pos` was already initialized.')
+        self.m_pos = np.ones((len(self.q_desired), *shape), dtype=float)  # marker positions
+        a = np.arange(len(self.q_desired), dtype=float)
+        a.shape = (len(self.q_desired), *[1 for _ in range(len(shape))])
+        self.m_pos *= a
+
+    def _init_m_height(self, shape):
+        if self.m_height is not None:
+            raise ValueError(f'`{self}.m_height` was already initialized.')
+        # marker heights
+        self.m_height = np.ones((len(self.q_desired), *shape), dtype=float) * np.nan
 
     def _accumulate_obj(self, obj):
+        obj = np.asarray(obj)
+        if self.m_pos is None or self.m_height is None:
+            self._init_m_pos(obj.shape)
+            self._init_m_height(obj.shape)
+        # TODO write test to assure obj shape doesn't change
+        #  once `m_pos` and `m_height` is initialized.
         if self._n < len(self.q_desired) - 1:
             self.m_height[self._n] = obj
             self._n += 1
             return
         elif self._n == len(self.q_desired) - 1:
             self.m_height[self._n] = obj
-            self.m_height = sorted(self.m_height)
+            self.m_height = np.sort(self.m_height, axis=0)
         else:
             # Check for new Min
-            if obj < self.m_height[0]:
-                self.m_height[0] = obj
+            cond_min = obj < self.m_height[0]
+            self.m_height[0] = np.where(cond_min, obj, self.m_height[0])
             # Check for new Max
-            elif self.m_height[-1] < obj:
-                self.m_height[-1] = obj
+            cond_max = obj > self.m_height[-1]
+            self.m_height[-1] = np.where(cond_max, obj, self.m_height[-1])
             # Increment Marker positions
-            for i, h in enumerate(self.m_height[1:], start=1):
-                if obj <= h:
-                    self.m_pos[i] += 1
-            assert self.m_pos[0] == 0 and self.m_pos[-1] == self.n
+            self.m_pos[1:] += (obj <= self.m_height[1:])
+
+            # assert self.m_pos[0] == 0 and self.m_pos[-1] == self.n
         self._adjust_heights()
-        assert all([self.m_height[i] <= self.m_height[i+1] for i in range(len(self.m_height) - 1)])
+        # assert np.all(self.m_height[:-1] <= self.m_height[1:]),
+        # f'Problem: Heights unsorted at {self.n}'
         self._n += 1
 
-    @property
-    def _m_posdiff(self):
+    def _m_posdiff(self, i):
         '''
         Calculate the difference between the marker positions
         `m_pos` and the desired marker positions `_m_desired`.
         '''
-        return self._m_desired - self.m_pos
+        return self._m_desired[i] - self.m_pos[i]
 
     @property
     def _m_desired(self):
@@ -474,51 +498,69 @@ class CDFEstimator(Accumulator):
         '''
         This function implements step B3 from box 1 in the Jain and Chlamtac paper.
         '''
-        assert self._m_posdiff[0] == 0 and self._m_posdiff[-1] == 0
+
+        def adjust_possible(pdiff, positions):
+            l_step = np.logical_and(pdiff <= -1, positions[0] - positions[1] < -1)
+            r_step = np.logical_and(pdiff >= 1, positions[2] - positions[1] > 1)
+            return np.logical_or(l_step, r_step)
+
+        def parabolic_possible(h_new, heights):  # p for previous, n for next
+            # could potentially be replaced
+            # by a check if heights are still strictly increasing
+            return np.logical_and(heights[0] < h_new, h_new < heights[2])
+
+        # assert np.all(self._m_posdiff[..., 0]) == 0 and np.all(self._m_posdiff[..., -1] == 0)
         for i in range(1, len(self.q_desired) - 1):
-            posdiff = self._m_posdiff
-            if ((posdiff[i] >= 1) and (self.m_pos[i+1] - self.m_pos[i] > 1))\
-                    or ((posdiff[i] <= -1) and (self.m_pos[i-1] - self.m_pos[i] < -1)):
-                d = int(np.sign(posdiff[i]))
-                q_new = self._parabolic(self.m_height[i - 1:i + 2], self.m_pos[i-1:i+2], d)
-                if self.m_height[i-1] < q_new and q_new < self.m_height[i+1]:
-                    self.m_height[i] = q_new  # set marker height to new value
-                else:
-                    heights = (self.m_height[i], self.m_height[i+d])
-                    positions = (self.m_pos[i], self.m_pos[i+d])
-                    self.m_height[i] = self._linear(heights, positions, d)
-                self.m_pos[i] += d
+            posdiff = self._m_posdiff(i)
+            direction = np.sign(posdiff)
+            heights = (self.m_height[i-1],
+                       self.m_height[i],
+                       self.m_height[i+1])
+            positions = (self.m_pos[i-1],
+                         self.m_pos[i],
+                         self.m_pos[i+1])
+            # calc parabolic and linear interp for all observations
+            par = self._parabolic(heights, positions, direction)
+            # depending on the step direction _linear requires different arguments.
+            lin = self._linear((heights[1], np.where(direction < 0, heights[0], heights[2])),
+                               (positions[1], np.where(direction < 0, positions[0], positions[2])),
+                               direction)
+            pos = self.m_pos[i] + direction
+            # Apply height changes where needed.
+            adj = adjust_possible(posdiff, positions)
+            self.m_height[i] = np.where(adj,
+                                        np.where(parabolic_possible(par, heights), par, lin),
+                                        self.m_height[i])
+            # Don't forget to adjust marker positions where necessary
+            self.m_pos[i] = np.where(adj,
+                                     pos,
+                                     self.m_pos[i])
 
     @staticmethod
     def _linear(q, n, d):
         '''
         Calculate the new marker height by using linear interpolation.
         '''
-        if len(q) != 2:
-            raise ValueError('q does not contain 2 elements!')
-        if len(n) != 2:
-            raise ValueError('n does not contain 2 elements!')
+        # if len(q) != 2:
+        #     raise ValueError('q does not contain 2 elements!')
+        # if len(n) != 2:
+        #     raise ValueError('n does not contain 2 elements!')
         q_i, q_d = q
         n_i, n_d = n
         q_new = q_i + d*((q_d - q_i) / (n_d - n_i))
         return q_new
 
     @staticmethod
-    def _parabolic(q, n, d):
+    def _parabolic(heights, positions, d):
         '''
         Calculate marker height at the new position
         using the piecewise parabolic formula described in
         https://doi.org/10.1145/4372.4378.
         '''
-        if len(q) != 3:
-            raise ValueError('q does not contain 3 elements!')
-        if len(n) != 3:
-            raise ValueError('n does not contain 3 elements!')
-
-        if not all([n[i] <= n[i+1] for i in range(len(n)-1)]):
-            raise ValueError('n must be sorted!')
-        q1, q2, q3 = q
-        n1, n2, n3 = n
+        # TODO: im not quite happy with this implementation.
+        #  Also add error handling again
+        q1, q2, q3 = heights
+        n1, n2, n3 = positions
         q_new = q2 + d / (n3 - n1) * ((n2 - n1 + d)
                                       * (q3 - q2) / (n3 - n2)
                                       + (n3 - n2 - d)

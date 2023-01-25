@@ -4,19 +4,60 @@
 # Stephan Kuschel 2022-2023
 
 import unittest
+import numpy as np
 import generatorpipeline as gp
 
 
 # These sample values are taken from the Jain and Chlamtac (https://doi.org/10.1145/4372.4378).
-# Detailed test, including also testing internal positions and heights in every step
-# have been removed due to convenience for testing entire numpy arrays.
-# Last commit that includes also checking positions and heights is
-# 00e53fb038b4610326f55a91e450cfb156070fc2
 
 paper_sample_values = [0.02, 0.15, 0.74, 3.39, 0.83, 22.37, 10.15, 15.43, 38.62, 15.92, 34.6, 10.28, 1.47, 0.4, 0.05, 11.39,
                  0.27, 0.42, 0.19, 11.37, -100]  # There is a typo in the paper: 2nd value must be 0.15 not 0.5
 
-paper_sample_medianestimates = [None, None, 0.74, 0.74, 0.74, 0.74, 0.74, 2.178333333333333, 4.752685185185185,
+paper_sample_m_height = [[0.02, np.nan, np.nan, np.nan, np.nan],
+                    [0.02, 0.15, np.nan, np.nan, np.nan],
+                    [0.02, 0.15, 0.74, np.nan, np.nan],
+                    [0.02, 0.15, 0.74, 3.39, np.nan],
+                    [0.02, 0.15, 0.74, 0.83, 3.39],
+                    [0.02, 0.15, 0.74, 0.83, 22.37],
+                    [0.02, 0.15, 0.74, 4.465, 22.37],
+                    [0.02, 0.15, 2.178333333333333, 8.592500000000001, 22.37],
+                    [0.02, 0.8694444444444442, 4.752685185185185, 15.516990740740741, 38.62],
+                    [0.02, 0.8694444444444442, 4.752685185185185, 15.516990740740741, 38.62],
+                    [0.02, 0.8694444444444442, 9.274704861111111, 21.572663194444445, 38.62],
+                    [0.02, 0.8694444444444442, 9.274704861111111, 21.572663194444445, 38.62],
+                    [0.02, 2.1324631076388885, 9.274704861111111, 21.572663194444445, 38.62],
+                    [0.02, 2.1324631076388885, 9.274704861111111, 21.572663194444445, 38.62],
+                    [0.02, 0.7308431712962957, 6.297302000661376, 21.572663194444445, 38.62],
+                    [0.02, 0.7308431712962957, 6.297302000661376, 21.572663194444445, 38.62],
+                    [0.02, 0.5886745370370365, 6.297302000661376, 17.203904274140214, 38.62],
+                    [0.02, 0.5886745370370365, 6.297302000661376, 17.203904274140214, 38.62],
+                    [0.02, 0.4938954475308638, 4.440634353260338, 17.203904274140214, 38.62],
+                    [0.02, 0.4938954475308638, 4.440634353260338, 17.203904274140214, 38.62],
+                    [-100, -8.37393820297956, 4.440634353260338, 13.463286481667751, 38.62]]  # Last value is custom
+
+paper_sample_m_pos = [[0, 1, 2, 3, 4],
+                [0, 1, 2, 3, 4],
+                [0, 1, 2, 3, 4],
+                [0, 1, 2, 3, 4],
+                [0, 1, 2, 3, 4],
+                [0, 1, 2, 3, 5],
+                [0, 1, 2, 4, 6],
+                [0, 1, 3, 5, 7],
+                [0, 2, 4, 6, 8],
+                [0, 2, 4, 6, 9],
+                [0, 2, 5, 7, 10],
+                [0, 2, 5, 8, 11],
+                [0, 3, 6, 9, 12],
+                [0, 4, 7, 10, 13],
+                [0, 4, 7, 11, 14],
+                [0, 4, 7, 12, 15],
+                [0, 4, 8, 12, 16],
+                [0, 5, 9, 13, 17],
+                [0, 5, 9, 14, 18],
+                [0, 5, 9, 15, 19],
+                [0, 5, 10, 15, 20]]
+
+paper_sample_medianestimates = [np.nan, np.nan, 0.74, 0.74, 0.74, 0.74, 0.74, 2.178333333333333, 4.752685185185185,
                           4.752685185185185, 9.274704861111111, 9.274704861111111, 9.274704861111111,
                           9.274704861111111, 6.297302000661376, 6.297302000661376, 6.297302000661376,
                           6.297302000661376, 4.440634353260338, 4.440634353260338, 4.440634353260338]
@@ -33,7 +74,7 @@ sample2 = [0.24, 0.56, 0.19, 0.03, 0.34, 0.82, 0.1 , 0.78, 0.15, 0.39, 0.02,
        0.12, 0.57, 0.68, 0.57, 0.57, 0.43, 0.56, 0.39, 0.76, 0.78, 0.42,
        0.78]
 
-sample2_medians = [None, None, 0.19      , 0.19      , 0.24      ,
+sample2_medians = [np.nan, np.nan, 0.19      , 0.19      , 0.24      ,
        0.24      , 0.24      , 0.24      , 0.24      , 0.24      ,
        0.24      , 0.24      , 0.24      , 0.24      , 0.30240741,
        0.30240741, 0.30240741, 0.30240741, 0.30240741, 0.30240741,
@@ -66,7 +107,7 @@ sample3 = [0.37, 0.38, 0.97, 0.67, 0.81, 0.28, 0.74, 0.15, 0.69, 0.31, 0.5 ,
        0.55, 0.03, 0.85, 0.42, 0.57, 0.36, 0.09, 0.93, 0.69, 0.72, 0.65,
        0.33]
 
-sample3_medians = [None, None, 0.97      , 0.97      , 0.67      ,
+sample3_medians = [np.nan, np.nan, 0.97      , 0.97      , 0.67      ,
        0.67      , 0.67      , 0.67      , 0.67      , 0.67      ,
        0.60166667, 0.60166667, 0.53567347, 0.53567347, 0.53567347,
        0.53567347, 0.58834019, 0.58834019, 0.58834019, 0.58834019,
@@ -99,7 +140,7 @@ sample4 = [0.8 , 0.51, 0.92, 0.9 , 0.01, 0.76, 0.48, 0.19, 0.6 , 0.67, 0.27,
        0.98, 0.25, 0.37, 0.09, 0.45, 0.42, 0.63, 0.59, 0.96, 0.35, 0.34,
        0.72]
 
-sample4_medians = [None, None, 0.92      , 0.92      , 0.8       ,
+sample4_medians = [np.nan, np.nan, 0.92      , 0.92      , 0.8       ,
        0.8       , 0.67      , 0.67      , 0.55933333, 0.55933333,
        0.55933333, 0.55933333, 0.55933333, 0.55933333, 0.48420833,
        0.48420833, 0.48420833, 0.48420833, 0.41878441, 0.41878441,
@@ -127,7 +168,7 @@ sample5 = [0, 0.5, 1, 0.5, 0, 0.5, 1, 0.5, 0, 0.5, 1, 0.5, 0, 0.5, 1, 0.5, 0, 0.
            1, 0.5, 0, 0.5, 1, 0.5, 0, 0.5, 1, 0.5, 0, 0.5, 1, 0.5, 0, 0.5, 1, 0.5, 0, 0.5,
            1, 0.5, 0, 0.5, 1, 0.5, 0, 0.5, 1, 0.5, 0, 0.5, 1, 0.5, 0, 0.5, 1, 0.5, 0, 0.5, 1, 0.5]
 
-sample5_medians = [ None, None, 1.        , 1.        , 0.5       ,
+sample5_medians = [np.nan, np.nan, 1.        , 1.        , 0.5       ,
        0.5       , 0.5       , 0.5       , 0.41666667, 0.41666667,
        0.44444444, 0.44444444, 0.44444444, 0.44444444, 0.45833333,
        0.45833333, 0.45833333, 0.45833333, 0.46666667, 0.46666667,
@@ -148,12 +189,22 @@ sample5_medians = [ None, None, 1.        , 1.        , 0.5       ,
        0.49275362, 0.49275362, 0.49275362, 0.49275362, 0.49305556,
        0.49305556, 0.49305556, 0.49305556, 0.49333333, 0.49333333]
 
+
 class TestMedian(unittest.TestCase):
 
     def checkaccvalues(self, accumulator, vals, results):
         for i, (v, m) in enumerate(zip(vals, results)):
             accumulator.accumulate(v)
-            self.assertAlmostEqual(accumulator.value, m, msg='value {} and expected median {} differ after sample value {} (index {})'.format(accumulator.value, m, v, i))
+            self.assertTrue(np.allclose(accumulator.value, m, equal_nan=True), msg='value {} and expected median {} differ after sample value {} (index {})'.format(accumulator.value, m, v, i))
+
+    def test_1d_paperdata(self):
+        quant = gp.accumulators.QuantileEstimator(p=0.5)
+        for v, p, h in zip(paper_sample_values, paper_sample_m_pos, paper_sample_m_height):
+            quant.accumulate(v)
+            n, pos, height = quant._debug_info
+            pos, height = list(pos), list(height)
+            self.assertEqual(p, pos, f'Position test failed after value {n}: {v}.')
+            self.assertTrue(np.allclose(h, height, equal_nan=True), f'Height test failed after value {n}: {v}.')
 
     def test_1d_median(self):
         median = gp.accumulators.MedianEstimator()
@@ -175,6 +226,9 @@ class TestMedian(unittest.TestCase):
         median = gp.accumulators.MedianEstimator()
         self.checkaccvalues(median, sample5, sample5_medians)
 
+    def test_2d_median_sample234(self):
+        median = gp.accumulators.MedianEstimator()
+        self.checkaccvalues(median, zip(sample2, sample3, sample4), zip(sample2_medians, sample3_medians, sample4_medians))
 
 
 if __name__ == '__main__':
