@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2022 Stephan Kuschel
+# Copyright (C) 2020-2023 Stephan Kuschel
 #               2022 Robert Radloff
 #
 # This file is part of generatorpipeline.
@@ -70,6 +70,32 @@ class Accumulator(abc.ABC):
         return self
 
     __iadd__ = accumulate
+
+
+class Counter(Accumulator):
+    '''
+    Count the number of accumulated objects.
+    Objects can be None and will still be counted.
+    '''
+
+    def __init__(self, n=0):
+        if not n >= 0:
+            raise ValueError('n >=0 required, but n={} found.', format(n))
+        self._n = n
+
+    def _accumulate_obj(self, obj):
+        self._n += 1
+
+    def _accumulate_other(self, other):
+        self._n += other._n
+
+    @property
+    def value(self):
+        return self._n
+
+    @property
+    def n(self):
+        return self._n
 
 
 class _BinaryOpAccumulatorNumpy(Accumulator):
@@ -587,6 +613,37 @@ class CDFEstimator(Accumulator):
         '''
         return self.m_height, self.q_actual
 
+    def cdf_interp(self, v):
+        '''
+        Interpolation of the CDF at value(s) `v`.
+        Returns the quantile(s) `q` at which you would find `v` in the distribution.
+
+        Uses `np.interp` for the interpolation.
+        '''
+        return np.interp(v, *self.cdf)
+
+    @property
+    def quantile(self):
+        '''
+        Quantiles and corresponding values.
+
+        This is equivalent to `cdf` with swapped axis.
+        '''
+        return self.q_actual,  self.m_height
+
+    def quantile_interp(self, q):
+        '''
+        Interpolation of the value for the quantile(s) `q`.
+
+        This is equivalent to the interpolation of the inverse CDF at value(s) `q`.
+        Returns the value(s) `v` which is at the `q`-quantile of the distribution.
+
+        `quantile_interp(0.5)` returns an interpolated median.
+
+        Uses `np.interp` for the interpolation.
+        '''
+        return np.interp(q, *self.quantile)
+
     @property
     def pdf(self):
         '''
@@ -634,3 +691,122 @@ class MedianEstimator(QuantileEstimator):
     '''
     def __init__(self):
         super().__init__(0.5)
+
+
+class BinSorter(Accumulator):
+
+    def __init__(self, bin_edges, binaccumulatorcls=Counter, /, kwargs={},
+                 key=lambda x: x, datakey=lambda x: x):
+        '''
+        Sorts objects into accumulators for each bin. The simplest use case is to
+        create a histogram. However, the accumulator class to be used in each bin
+        can be set by the `binaccumulatorcls`. It will accumulate the data according
+        to the the `datakey` function. The data will be sorted into the right bins according to
+        the `key` function.
+
+        `bin_edges` have to be given explicitly.
+
+        the number of bins `nbins` is `len(bin_edges) - 1`.
+        '''
+        self._bin_edges = bin_edges
+        # + 2 for min and max bin
+        self._binaccs = [binaccumulatorcls(**kwargs) for _ in range(self.nbins + 2)]
+        self.sortkey = key
+        self.datakey = datakey
+        self._n = 0
+
+    @property
+    def nbins(self):
+        return len(self.bin_edges) - 1
+
+    @property
+    def bin_edges(self):
+        return self._bin_edges
+
+    def _accumulate_obj(self, obj):
+        self._n += 1
+        s = self.sortkey(obj)  # sort element
+        d = self.datakey(obj)  # data element
+        idx = np.digitize(s, self.bin_edges)
+        self._binaccs[idx].accumulate(d)
+
+    @property
+    def value(self):
+        return self.bin_edges, self._binaccs[1:-1]
+
+    @property
+    def histogram(self):
+        '''
+        returns `bin_edges` and `histogram`, identical to `np.histogram`.
+        `bin_edges` always has one element more than `histogram`.
+        '''
+        return self.bin_edges, [x.n for x in self._binaccs[1:-1]]
+
+    @property
+    def histogram_density(self):
+        '''
+        The Density in the histogram.
+        This is what you are looking for when the bins are not equally spaced.
+
+        The Integral of this function is the total number of observations.
+        '''
+        e, h = self.histogram
+        return e, h / np.diff(e)
+
+    @property
+    def n(self):
+        return self._n
+
+
+class DynamicBinSorter(BinSorter):
+
+    def __init__(self, nbins, binaccumulatorcls=Counter, /, kwargs={},
+                 key=lambda x: x, datakey=lambda x: x):
+        '''
+        Same as the `BinSorter`, but the `bin_edges` are dynamically adjusted using the
+        `CDFEstimator`.
+        '''
+        self._nbins = nbins
+        self.cdfestimator = CDFEstimator(nbins + 1)
+        self._binaccs = [binaccumulatorcls(**kwargs) for _ in range(nbins)]
+        self.sortkey = key
+        self.datakey = datakey
+        self._n = 0
+
+    @property
+    def nbins(self):
+        return self._nbins
+
+    @property
+    def bin_edges(self):
+        return self.cdfestimator.m_height
+
+    def _accumulate_obj(self, obj):
+        self._n += 1
+        s = self.sortkey(obj)  # sort element
+        self.cdfestimator.accumulate(s)
+        if self._n <= self.nbins:
+            # bin_edges must be available and the cdfestimator requires more than nbins
+            # many elements. Therefor only start after that many elements.
+            return
+        d = self.datakey(obj)  # data element
+        idx = np.digitize(s, self.bin_edges) - 1
+        # -1 because a new minimum will never be found.
+        # The cdfestimater has already adjusted to that.
+        if idx == self.nbins:
+            # element is new max
+            # print('new max found with element {}'.format(s))
+            idx -= 1
+        self._binaccs[idx].accumulate(d)
+
+    @property
+    def value(self):
+        return self.bin_edges, self._binaccs
+
+    @property
+    def histogram(self):
+        '''
+        returns `bin_edges` and `histogram`, identical to `np.histogram`.
+        `bin_edges` always has one element more than `histogram`.
+        '''
+        return self.bin_edges, [x.n for x in self._binaccs]
