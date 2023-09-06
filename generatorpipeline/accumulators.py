@@ -393,8 +393,11 @@ class CacheMaximum(Accumulator):
     """
     length: Number of retained elements
     key: method that cast element to number. Elements with highest number are retained 
+    time_key: way in which a time is assigned to the elements. 
+              default: None -> use system time
     timeout: maximum time between the retained elements: If the number of elements would be smaller than length then the newest elements are used
-             default: None -> use system time
+             default: None -> no timeout is used
+             
     """
     
     def __init__(self, length=10, key=lambda x: x, time_key=None, timeout=None):
