@@ -389,6 +389,89 @@ class CacheAccumulator(Accumulator):
         return self._n
 
 
+class CacheMaximum(Accumulator):
+    """
+    length: Number of retained elements
+    key: method that cast element to number. Elements with highest number are retained
+    time_key: way in which a time is assigned to the elements.
+              default: None -> use system time
+    timeout: maximum time between the retained elements: If the number of elements would be smaller
+             than length then the newest elements are used
+             default: None -> no timeout is used
+    """
+
+    def __init__(self, length=10, key=lambda x: x, time_key=None, timeout=None):
+        self._n = 0
+        self.length = length
+        self._cache = []
+        self.sortkeyf = key
+        self._time_keyf = time_key
+        self.timeout = timeout
+
+    def time_keyf(self, obj):
+        if self._time_keyf is None:
+            return time.time_ns()
+        else:
+            return self._time_keyf(obj)
+
+    def _accumulate_obj(self, obj):
+        self._n += 1
+        # Filling of Cache when lenght is not reached
+        if self._n <= self.length:
+            heapq.heappush(self._cache, (self.sortkeyf(obj), self.time_keyf(obj), obj))
+        else:
+            if self.timeout is None:
+                # Push the newest element onto the heap and remove the smallest one
+                # Note: If the heap consists of tupels as it is the case here, the first elements
+                # of the tupel will be compared first
+                heapq.heappushpop(self._cache, (self.sortkeyf(obj), self.time_keyf(obj), obj))
+            else:
+                # Push the newest(shot passed to the function) shot onto the heap. Necessary to
+                # check wether the oldest shot is older than timeout
+                heapq.heappush(self._cache, (self.sortkeyf(obj), self.time_keyf(obj), obj))
+                # Put times onto array for easy comparison
+                time_arr = [el[1] for el in self._cache]
+                # check if the oldest shot is older than timeout
+                if np.max(time_arr)-np.min(time_arr) >= self.timeout:
+                    # Take the n newest shots(Later times are newer)
+                    self._cache = heapq.nlargest(self.length, self._cache, key=lambda x: x[1])
+                    heapq.heapify(self._cache)
+                else:
+                    heapq.heappop(self._cache)
+
+    # Uses timeout of gathering Accumulator and implicitly assumes that key and time_key are
+    # the same for both accumulators
+    def _accumulate_other(self, other):
+        self._n += other.n
+        # Inputs are not necessarily sorted, so the output isn't either
+        merged = heapq.merge((self._cache, other._cache))
+        # remove the shots which are too old first
+        if self.timeout is not None:
+            time_arr = [el[1] for el in self._cache]
+            j = 0
+            while np.max(time_arr) - np.min(time_arr) >= self.timeout and other.length > j:
+                # remove the oldest shot
+                j += 1
+                self._cache = heapq.nlargest(self.length + other.length-j,
+                                             self._cache, key=lambda x: x[1])
+                time_arr = [el[1] for el in self._cache]
+        self._cache = heapq.nlargest(self.length, self._cache, key=lambda x: x[0])
+        heapq.heapify(self._cache)
+
+    @property
+    def value(self):
+        '''
+        value[0] is the brightest element.
+        '''
+        # Sort the output according to 'brightness'
+        lst = sorted(self._cache, key=lambda x: x[0])
+        return [el[2] for el in lst]
+
+    @property
+    def n(self):
+        return self._n
+
+
 class CDFEstimator(Accumulator):
     '''
     Estimates the Cumulative Distribution Function (CDF).
