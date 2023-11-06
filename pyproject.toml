@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=61.0", "setuptools-git-versioning", "versioneer[toml]==0.29"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "generatorpipeline"
+description = "Parallelize your data-processing pipelines with just a decorator."
+requires-python = ">=3.6"
+readme = "README.md"
+license = {file = "LICENSE"}
+authors = [
+    {name = "Stephan Kuschel", email = "stephan.kuschel@gmail.com"},
+    ]
+dependencies = ["dill"]
+dynamic = ["version"]
+
+[tool.setuptools-git-versioning]
+enabled = true
+
+[project.urls]
+"Homepage" = "https://github.com/skuschel/generatorpipeline"
+"Bug Tracker" = "https://github.com/skuschel/generatorpipeline/issues"
+
+[project.optional-dependencies]
+network = ["pyzmq"]
+accumulators = ["numpy"]
+full = ["generatorpipeline[network,accumulators]"]
+
+[tool.versioneer]
+VCS = "git"
+style = "pep440"
+versionfile_source = "generatorpipeline/_version.py"
+versionfile_build = "generatorpipeline/_version.py"
+tag_prefix="v"
+parentdir_prefix = ""
