@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (C) 2019-2020 Stephan Kuschel
+# Copyright (C) 2019-2023 Stephan Kuschel
 #
 # This file is part of generatorpipeline.
 #
@@ -21,6 +21,8 @@
 from setuptools import setup, find_packages
 import versioneer
 
+# keep setup.py for versioneer.
+# Otherwise git tags are ignored and `pip install .` doesnt know its version. See PR #46.
 
 setup(name='generatorpipeline',
       version=versioneer.get_version(),
