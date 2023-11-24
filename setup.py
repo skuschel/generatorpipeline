@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (C) 2019-2020 Stephan Kuschel
+# Copyright (C) 2019-2023 Stephan Kuschel
 #
 # This file is part of generatorpipeline.
 #
@@ -21,18 +21,10 @@
 from setuptools import setup, find_packages
 import versioneer
 
+# keep setup.py for versioneer.
+# Otherwise git tags are ignored and `pip install .` doesnt know its version. See PR #46.
 
 setup(name='generatorpipeline',
       version=versioneer.get_version(),
       cmdclass=versioneer.get_cmdclass(),
-      packages=find_packages(include=['generatorpipeline*']),
-      python_requires='>=3.6',
-      license='GPLv3+',
-      author='Stephan Kuschel',
-      author_email='stephan.kuschel@gmail.com',
-      url='https://github.com/skuschel/generatorpipeline',
-      install_requires=['dill'],
-      extras_require={'network': ['pyzmq'],
-                      'accumulators': ['numpy'],
-                      'full': ['numpy', 'pyzmq']},
-      description='Parallelize your data-processing pipelines with just a decorator.')
+      packages=find_packages(include=['generatorpipeline*']))
