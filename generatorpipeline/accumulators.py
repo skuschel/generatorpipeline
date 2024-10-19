@@ -474,13 +474,18 @@ class CacheMaximum(Accumulator):
 
 
 class ReservoirSampling(Accumulator):
-    """
-    Uses the Algorithm R which chooses k items from a simple random sample of unknown size n,
-    without replacement, in a single pass over the items.
-    length: k
+    '''
+    Samples a random collection from a series of elements.
 
-    see also: https://en.wikipedia.org/wiki/Reservoir_sampling
-    """
+    This class chooses a simple random sample, without replacement,
+    of k items from a population of unknown size n in a single pass over the items.
+    The size of the population n is not known to the algorithm and is typically too large
+    for all n items to fit into main memory.
+    The Accumulator is non-deterministic.
+    Uses the Algorithm R (https://en.wikipedia.org/wiki/Reservoir_sampling)
+
+    length: size of the reservoir
+    '''
 
     def __init__(self, length=10):
         self._n = 0
