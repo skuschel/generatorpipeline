@@ -26,6 +26,7 @@ parts of the data.
 import abc
 import numpy as np
 from collections import deque
+import random
 import time
 import heapq
 
@@ -466,6 +467,39 @@ class CacheMaximum(Accumulator):
         # Sort the output according to 'brightness'
         lst = sorted(self._cache, key=lambda x: x[0])
         return [el[2] for el in lst]
+
+    @property
+    def n(self):
+        return self._n
+
+
+class ReservoirSampling(Accumulator):
+    """
+    Uses the Algorithm R which chooses k items from a simple random sample of unknown size n,
+    without replacement, in a single pass over the items.
+    length: k
+
+    see also: https://en.wikipedia.org/wiki/Reservoir_sampling
+    """
+
+    def __init__(self, length=10):
+        self._n = 0
+        self.length = length
+        self._reservoir = []
+
+    def _accumulate_obj(self, obj):
+        self._n += 1
+        # Filling of Reservoir until length is reached
+        if self._n <= self.length:
+            self._reservoir.append(obj)
+        else:
+            j = random.randint(1, self._n)
+            if j <= self.length:
+                self._reservoir[j-1] = obj
+
+    @property
+    def value(self):
+        return list(self._reservoir)
 
     @property
     def n(self):
